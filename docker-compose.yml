@@ -1,0 +1,54 @@
+# Sobe o DocFlow completo: Postgres, backend e frontend.
+#   cp .env.example .env   (opcional; sem ele, usa os padrões)
+#   docker compose up --build
+#   http://localhost:8081
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: docflow
+      POSTGRES_USER: ${DB_USERNAME:-docflow}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-docflow}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d docflow"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  backend:
+    build: .
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      # Datas de negócio (prazos, lembretes, "hoje") no fuso do Brasil, não em UTC
+      TZ: ${TZ:-America/Sao_Paulo}
+      DB_URL: jdbc:postgresql://db:5432/docflow
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-demo}
+      STORAGE_CONTRACTS_DIR: /app/uploads/contracts
+      STORAGE_TASKS_DIR: /app/uploads/tasks
+    volumes:
+      - uploads:/app/uploads
+    extra_hosts:
+      # Permite usar o Ollama da máquina: OLLAMA_URL=http://host.docker.internal:11434
+      - "host.docker.internal:host-gateway"
+    mem_limit: 768m
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend-web
+      args:
+        VITE_APP_NAME: ${APP_BUSINESS_NAME:-DocFlow}
+    ports:
+      - "8081:80"
+    depends_on:
+      - backend
+
+volumes:
+  db-data:
+  uploads:
