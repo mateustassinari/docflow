@@ -38,6 +38,10 @@ public class AiAssistantFacade {
     private final AiContextBuilder contextBuilder;
     private final BusinessProfile businessProfile;
 
+    public boolean isEnabled() {
+        return ai.isEnabled();
+    }
+
     public String chat(String question) {
         if (question == null || question.isBlank()) {
             throw new BusinessException("AI_QUESTION_REQUIRED", "A pergunta não pode ser vazia");

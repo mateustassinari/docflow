@@ -1,5 +1,6 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { APP_NAME } from '../shared/config/app'
+import { useAiEnabled } from '../features/ai/hooks/useAiEnabled'
 import {
   LayoutDashboard,
   Calendar,
@@ -23,6 +24,9 @@ const navItems = [
 
 export default function Sidebar() {
   const navigate = useNavigate()
+  const aiEnabled = useAiEnabled()
+  // O assistente só aparece no menu quando a IA está ligada no backend
+  const visibleItems = navItems.filter(item => item.to !== '/ia' || aiEnabled === true)
 
   return (
     <aside className="sidebar">
@@ -36,7 +40,7 @@ export default function Sidebar() {
       </div>
 
       <nav className="sidebar-nav">
-        {navItems.map(({ to, icon: Icon, label }) => (
+        {visibleItems.map(({ to, icon: Icon, label }) => (
           <NavLink
             key={to}
             to={to}

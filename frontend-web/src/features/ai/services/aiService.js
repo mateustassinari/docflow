@@ -8,6 +8,10 @@ export const aiService = {
     })
   },
 
+  getStatus() {
+    return apiFetch('/ai/status')
+  },
+
   getInsights() {
     return apiFetch('/ai/insights')
   },

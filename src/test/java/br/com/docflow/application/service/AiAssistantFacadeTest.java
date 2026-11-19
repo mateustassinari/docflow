@@ -75,4 +75,13 @@ class AiAssistantFacadeTest {
         assertThat(systemPrompt.getValue()).contains("sistema de gestão de Ateliê Exemplo", "Você ajuda Ana");
         assertThat(userPrompt.getValue()).contains("para Ana sobre o negócio");
     }
+
+    @Test
+    void shouldReportWhetherTheAssistantIsEnabled() {
+        when(ai.isEnabled()).thenReturn(false);
+        assertThat(facade.isEnabled()).isFalse();
+
+        when(ai.isEnabled()).thenReturn(true);
+        assertThat(facade.isEnabled()).isTrue();
+    }
 }

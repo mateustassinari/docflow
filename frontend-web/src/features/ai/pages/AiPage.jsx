@@ -2,8 +2,41 @@ import { useEffect, useRef } from 'react'
 import TopBar from '../../../layouts/TopBar'
 import { Sparkles, Send, Bot, User, RefreshCw, AlertCircle, Loader2 } from 'lucide-react'
 import { useAiPage } from '../hooks/useAiPage'
+import { useAiEnabled } from '../hooks/useAiEnabled'
 
 export default function AiPage() {
+  const enabled = useAiEnabled()
+
+  if (enabled === null) {
+    return (
+      <>
+        <TopBar title="Assistente IA" />
+        <div className="page-content">
+          <div className="empty-state">
+            <Loader2 size={16} className="spin" /> Verificando o assistente...
+          </div>
+        </div>
+      </>
+    )
+  }
+
+  if (!enabled) {
+    return (
+      <>
+        <TopBar title="Assistente IA" />
+        <div className="page-content">
+          <div className="card empty-state">
+            <AlertCircle /> Assistente de IA desativado. Para ativar, configure AI_ENABLED e OLLAMA_URL (veja o README).
+          </div>
+        </div>
+      </>
+    )
+  }
+
+  return <AiAssistant />
+}
+
+function AiAssistant() {
   const {
     messages,
     input,

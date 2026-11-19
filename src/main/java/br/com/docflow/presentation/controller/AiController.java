@@ -4,6 +4,7 @@ import br.com.docflow.application.service.AiAssistantFacade;
 import br.com.docflow.presentation.dto.AiChatRequest;
 import br.com.docflow.presentation.dto.AiChatResponse;
 import br.com.docflow.presentation.dto.AiInsightsResponse;
+import br.com.docflow.presentation.dto.AiStatusResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -19,6 +20,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class AiController {
 
     private final AiAssistantFacade aiAssistantFacade;
+
+    @GetMapping("/status")
+    public ResponseEntity<AiStatusResponse> status() {
+        return ResponseEntity.ok(new AiStatusResponse(aiAssistantFacade.isEnabled()));
+    }
 
     @PostMapping("/chat")
     public ResponseEntity<AiChatResponse> chat(@Valid @RequestBody AiChatRequest request) {
