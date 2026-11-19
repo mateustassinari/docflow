@@ -1,5 +1,6 @@
 package br.com.docflow.presentation.controller;
 
+import br.com.docflow.presentation.dto.ClientResponse;
 import br.com.docflow.domain.model.Client;
 import br.com.docflow.domain.repository.ClientRepository;
 import br.com.docflow.presentation.dto.ClientRequest;
@@ -25,19 +26,19 @@ public class ClientController {
     private final ClientRepository clientRepository;
 
     @PostMapping
-    public ResponseEntity<Client> create(@Valid @RequestBody ClientRequest request) {
+    public ResponseEntity<ClientResponse> create(@Valid @RequestBody ClientRequest request) {
         Client client = new Client();
         client.setNome(request.getNome());
         client.setCpfCnpj(request.getCpfCnpj());
         client.setEmail(request.getEmail());
         client.setTelefone(request.getTelefone());
 
-        return ResponseEntity.ok(clientRepository.save(client));
+        return ResponseEntity.ok(ClientResponse.from(clientRepository.save(client)));
     }
 
     @GetMapping
-    public ResponseEntity<List<Client>> listAll() {
-        return ResponseEntity.ok(clientRepository.findAll());
+    public ResponseEntity<List<ClientResponse>> listAll() {
+        return ResponseEntity.ok(clientRepository.findAll().stream().map(ClientResponse::from).toList());
     }
 
     @PutMapping("/{id}")
@@ -47,7 +48,7 @@ public class ClientController {
             existing.setCpfCnpj(request.getCpfCnpj());
             existing.setEmail(request.getEmail());
             existing.setTelefone(request.getTelefone());
-            return ResponseEntity.ok(clientRepository.save(existing));
+            return ResponseEntity.ok(ClientResponse.from(clientRepository.save(existing)));
         }).orElse(ResponseEntity.notFound().build());
     }
 

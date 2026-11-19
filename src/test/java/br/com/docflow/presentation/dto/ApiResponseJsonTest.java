@@ -10,7 +10,7 @@ import org.springframework.boot.test.autoconfigure.json.JsonTest;
 /**
  * Fixa o contrato JSON de eventos, clientes, templates e custos padrão (o que o frontend lê),
  * com o ObjectMapper configurado pelo Spring Boot. Os valores esperados são o JSON que a API
- * devolvia quando serializava o domínio direto.
+ * devolvia quando serializava o domínio direto; os DTOs de resposta precisam manter exatamente o mesmo.
  */
 @JsonTest
 class ApiResponseJsonTest {
@@ -105,22 +105,22 @@ class ApiResponseJsonTest {
 
     @Test
     void eventShouldKeepTheJsonContract() throws Exception {
-        assertJson(EVENT_JSON, ApiJsonFixtures.event());
+        assertJson(EVENT_JSON, EventResponse.from(ApiJsonFixtures.event()));
     }
 
     @Test
     void clientShouldKeepTheJsonContract() throws Exception {
-        assertJson(CLIENT_JSON, ApiJsonFixtures.client());
+        assertJson(CLIENT_JSON, ClientResponse.from(ApiJsonFixtures.client()));
     }
 
     @Test
     void templateShouldKeepTheJsonContract() throws Exception {
-        assertJson(TEMPLATE_JSON, ApiJsonFixtures.template());
+        assertJson(TEMPLATE_JSON, TemplateContratoResponse.from(ApiJsonFixtures.template()));
     }
 
     @Test
     void costDefaultShouldKeepTheJsonContract() throws Exception {
-        assertJson(COST_DEFAULT_JSON, ApiJsonFixtures.costDefault());
+        assertJson(COST_DEFAULT_JSON, ServiceTypeCostDefaultResponse.from(ApiJsonFixtures.costDefault()));
     }
 
     private void assertJson(String expected, Object response) throws Exception {

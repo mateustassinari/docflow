@@ -1,8 +1,8 @@
 package br.com.docflow.presentation.controller;
 
+import br.com.docflow.presentation.dto.ServiceTypeCostDefaultResponse;
 import br.com.docflow.application.usecase.GetServiceTypeCostDefaultsUseCase;
 import br.com.docflow.application.usecase.UpdateServiceTypeCostDefaultUseCase;
-import br.com.docflow.domain.model.ServiceTypeCostDefault;
 import br.com.docflow.presentation.dto.ServiceTypeCostDefaultRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -25,14 +25,14 @@ public class ServiceTypeCostDefaultController {
     private final UpdateServiceTypeCostDefaultUseCase updateServiceTypeCostDefaultUseCase;
 
     @GetMapping
-    public ResponseEntity<List<ServiceTypeCostDefault>> getAll() {
-        return ResponseEntity.ok(getServiceTypeCostDefaultsUseCase.execute());
+    public ResponseEntity<List<ServiceTypeCostDefaultResponse>> getAll() {
+        return ResponseEntity.ok(getServiceTypeCostDefaultsUseCase.execute().stream().map(ServiceTypeCostDefaultResponse::from).toList());
     }
 
     @PutMapping("/{tipoServico}")
-    public ResponseEntity<ServiceTypeCostDefault> update(
+    public ResponseEntity<ServiceTypeCostDefaultResponse> update(
             @PathVariable String tipoServico,
             @Valid @RequestBody ServiceTypeCostDefaultRequest request) {
-        return ResponseEntity.ok(updateServiceTypeCostDefaultUseCase.execute(tipoServico, request.getCustoDefault()));
+        return ResponseEntity.ok(ServiceTypeCostDefaultResponse.from(updateServiceTypeCostDefaultUseCase.execute(tipoServico, request.getCustoDefault())));
     }
 }

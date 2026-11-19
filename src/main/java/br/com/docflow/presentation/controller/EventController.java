@@ -1,9 +1,9 @@
 package br.com.docflow.presentation.controller;
 
+import br.com.docflow.presentation.dto.EventResponse;
 import br.com.docflow.application.usecase.CreateEventUseCase;
 import br.com.docflow.application.usecase.UpdateEventPaymentUseCase;
 import br.com.docflow.application.usecase.UpdateEventUseCase;
-import br.com.docflow.domain.model.Event;
 import br.com.docflow.domain.repository.EventRepository;
 import br.com.docflow.presentation.dto.EventPaymentRequest;
 import br.com.docflow.presentation.dto.EventRequest;
@@ -32,29 +32,29 @@ public class EventController {
     private final UpdateEventPaymentUseCase updateEventPaymentUseCase;
 
     @PostMapping
-    public ResponseEntity<Event> create(@Valid @RequestBody EventRequest request) {
-        return ResponseEntity.ok(createEventUseCase.execute(request.toCommand()));
+    public ResponseEntity<EventResponse> create(@Valid @RequestBody EventRequest request) {
+        return ResponseEntity.ok(EventResponse.from(createEventUseCase.execute(request.toCommand())));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Event> update(@PathVariable Long id, @Valid @RequestBody EventRequest request) {
-        return ResponseEntity.ok(updateEventUseCase.execute(id, request.toCommand()));
+    public ResponseEntity<EventResponse> update(@PathVariable Long id, @Valid @RequestBody EventRequest request) {
+        return ResponseEntity.ok(EventResponse.from(updateEventUseCase.execute(id, request.toCommand())));
     }
 
     @GetMapping
-    public ResponseEntity<List<Event>> listAll() {
-        return ResponseEntity.ok(eventRepository.findAll());
+    public ResponseEntity<List<EventResponse>> listAll() {
+        return ResponseEntity.ok(eventRepository.findAll().stream().map(EventResponse::from).toList());
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Event> findById(@PathVariable Long id) {
+    public ResponseEntity<EventResponse> findById(@PathVariable Long id) {
         return eventRepository.findById(id)
-                .map(ResponseEntity::ok)
+                .map(event -> ResponseEntity.ok(EventResponse.from(event)))
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @PatchMapping("/{id}/payment")
-    public ResponseEntity<Event> updatePayment(@PathVariable Long id, @RequestBody EventPaymentRequest request) {
-        return ResponseEntity.ok(updateEventPaymentUseCase.execute(id, request.toCommand()));
+    public ResponseEntity<EventResponse> updatePayment(@PathVariable Long id, @RequestBody EventPaymentRequest request) {
+        return ResponseEntity.ok(EventResponse.from(updateEventPaymentUseCase.execute(id, request.toCommand())));
     }
 }

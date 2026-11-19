@@ -1,5 +1,6 @@
 package br.com.docflow.presentation.controller;
 
+import br.com.docflow.presentation.dto.TemplateContratoResponse;
 import br.com.docflow.domain.model.Client;
 import br.com.docflow.domain.model.Contract;
 import br.com.docflow.domain.model.Event;
@@ -36,30 +37,30 @@ public class TemplateContratoController {
     private final ContractDocumentGenerator documentGenerator;
 
     @GetMapping
-    public ResponseEntity<List<TemplateContrato>> listAll() {
-        return ResponseEntity.ok(templateRepository.findAll());
+    public ResponseEntity<List<TemplateContratoResponse>> listAll() {
+        return ResponseEntity.ok(templateRepository.findAll().stream().map(TemplateContratoResponse::from).toList());
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<TemplateContrato> findById(@PathVariable Long id) {
+    public ResponseEntity<TemplateContratoResponse> findById(@PathVariable Long id) {
         return templateRepository.findById(id)
-                .map(ResponseEntity::ok)
+                .map(template -> ResponseEntity.ok(TemplateContratoResponse.from(template)))
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @PostMapping
-    public ResponseEntity<TemplateContrato> create(@Valid @RequestBody TemplateContratoRequest request) {
+    public ResponseEntity<TemplateContratoResponse> create(@Valid @RequestBody TemplateContratoRequest request) {
         TemplateContrato template = new TemplateContrato();
         applyRequest(template, request);
-        return ResponseEntity.ok(templateRepository.save(template));
+        return ResponseEntity.ok(TemplateContratoResponse.from(templateRepository.save(template)));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<TemplateContrato> update(@PathVariable Long id, @Valid @RequestBody TemplateContratoRequest request) {
+    public ResponseEntity<TemplateContratoResponse> update(@PathVariable Long id, @Valid @RequestBody TemplateContratoRequest request) {
         TemplateContrato template = templateRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("TEMPLATE_NOT_FOUND", "Template nao encontrado"));
         applyRequest(template, request);
-        return ResponseEntity.ok(templateRepository.save(template));
+        return ResponseEntity.ok(TemplateContratoResponse.from(templateRepository.save(template)));
     }
 
     @PostMapping(value = "/preview", produces = MediaType.APPLICATION_PDF_VALUE)
