@@ -1,0 +1,1 @@
+ALTER TABLE events ADD COLUMN contrato_dispensado BOOLEAN NOT NULL DEFAULT FALSE;

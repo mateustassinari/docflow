@@ -1,0 +1,17 @@
+# Fim de linha LF no repositório e na pasta de trabalho, em qualquer sistema.
+# Sem eol=lf, o git do Windows (ex.: GitHub Desktop com core.autocrlf=true) grava CRLF
+# na pasta do WSL e todos os arquivos aparecem como modificados.
+* text=auto eol=lf
+
+# Scripts do Windows precisam de CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binários: nunca converter
+*.jar binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
