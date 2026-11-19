@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useEffectEvent, useRef, useState } from 'react'
 import { useToast } from '../../../shared/hooks/useToast'
 import { clientsService } from '../../clients/services/clientsService'
 import { contractsService } from '../../contracts/services/contractsService'
@@ -117,6 +117,9 @@ export function useEventDetailPage({
     }
   }
 
+  // useEffectEvent: o efeito usa a versão mais recente de openEditModal sem rodar de novo quando ela muda
+  const openEditModalFromEffect = useEffectEvent(() => openEditModal())
+
   useEffect(() => {
     if (!evento || !shouldOpenEdit) return
 
@@ -124,7 +127,7 @@ export function useEventDetailPage({
     if (handledAutoEditEventIdRef.current === eventId) return
 
     handledAutoEditEventIdRef.current = eventId
-    openEditModal()
+    openEditModalFromEffect()
     onEditParamHandled(evento)
   }, [evento, shouldOpenEdit, onEditParamHandled])
 

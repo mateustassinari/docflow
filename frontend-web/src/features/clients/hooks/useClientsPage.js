@@ -24,8 +24,8 @@ export function useClientsPage() {
     setTimeout(() => setToast(null), 3500)
   }
 
-  const fetchClientes = () => {
-    setLoading(true)
+  // Busca sem setState síncrono: o efeito de carga inicial pode chamá-la direto (loading já começa true)
+  const requestClientes = () =>
     clientsService.list()
       .then(data => {
         setClientes(Array.isArray(data) ? data : [])
@@ -34,15 +34,22 @@ export function useClientsPage() {
         setClientes([])
       })
       .finally(() => setLoading(false))
+
+  const fetchClientes = () => {
+    setLoading(true)
+    requestClientes()
   }
 
   useEffect(() => {
-    fetchClientes()
+    requestClientes()
   }, [])
 
-  useEffect(() => {
+  // Nova busca volta para a primeira página, ajustando o estado na renderização (sem efeito extra)
+  const [previousSearchTerm, setPreviousSearchTerm] = useState(searchTerm)
+  if (searchTerm !== previousSearchTerm) {
+    setPreviousSearchTerm(searchTerm)
     setCurrentPage(1)
-  }, [searchTerm])
+  }
 
   const setF = field => event => {
     setForm(prev => ({ ...prev, [field]: event.target.value }))

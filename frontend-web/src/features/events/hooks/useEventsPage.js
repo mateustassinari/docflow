@@ -67,9 +67,12 @@ export function useEventsPage() {
       .catch(() => {})
   }, [])
 
-  useEffect(() => {
+  // Filtro ou busca novos voltam para a primeira página (ajuste na renderização, sem efeito)
+  const [pageResetKey, setPageResetKey] = useState({ filter, searchTerm })
+  if (pageResetKey.filter !== filter || pageResetKey.searchTerm !== searchTerm) {
+    setPageResetKey({ filter, searchTerm })
     setCurrentPage(1)
-  }, [filter, searchTerm])
+  }
 
   const handleSendContract = async (event, contract) => {
     setSendingId(contract.id)

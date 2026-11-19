@@ -298,8 +298,10 @@ export default function EventoDetalhe() {
   }
   const stepIdx = getCurrentStepIndex(currentContractStatus)
 
-  React.useEffect(() => {
-    if (!evento) return
+  // O formulário de pagamento é preenchido a cada evento carregado (ajuste na renderização, sem efeito)
+  const [paymentFormSource, setPaymentFormSource] = React.useState(null)
+  if (evento && evento !== paymentFormSource) {
+    setPaymentFormSource(evento)
     setPaymentForm({
       sinalRecebido: evento.sinalRecebido || false,
       dataRecebimentoSinal: evento.dataRecebimentoSinal || '',
@@ -309,7 +311,7 @@ export default function EventoDetalhe() {
       custoTotal: evento.custoTotal != null ? String(evento.custoTotal) : '',
       custosExtras: evento.custosExtras != null ? String(evento.custosExtras) : '',
     })
-  }, [evento])
+  }
 
   if (loading) {
     return (

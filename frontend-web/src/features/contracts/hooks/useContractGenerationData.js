@@ -55,17 +55,13 @@ export function useContractGenerationData({ generatedContract, initialEventId = 
     return compatible.length > 0 ? compatible : templates
   }, [selectedEvent, templates])
 
-  useEffect(() => {
-    if (!visibleTemplates.length) {
-      setSelectedTemplateId('')
-      return
-    }
-
-    const stillVisible = visibleTemplates.some(template => String(template.id) === String(selectedTemplateId))
-    if (!stillVisible) {
-      setSelectedTemplateId(String(visibleTemplates[0].id))
-    }
-  }, [visibleTemplates, selectedTemplateId])
+  // O template selecionado precisa estar entre os compatíveis com o evento; senão, usa o primeiro.
+  // Ajuste na renderização (sem efeito): converge em uma passada, porque só muda quando difere.
+  const stillVisible = visibleTemplates.some(template => String(template.id) === String(selectedTemplateId))
+  const expectedTemplateId = !visibleTemplates.length ? '' : stillVisible ? selectedTemplateId : String(visibleTemplates[0].id)
+  if (expectedTemplateId !== selectedTemplateId) {
+    setSelectedTemplateId(expectedTemplateId)
+  }
 
   const upsertContract = contract => {
     setContracts(current => {

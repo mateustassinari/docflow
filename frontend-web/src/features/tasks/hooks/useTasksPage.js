@@ -125,28 +125,39 @@ export function useTasksPage(defaultEventId = '') {
   const [commentText, setCommentText] = useState('')
   const { showToast, toast } = useToast()
 
-  useEffect(() => {
+  // Evento padrão novo (ex.: ao trocar de evento) atualiza o filtro, ajustando o estado na renderização
+  const [previousDefaultEventId, setPreviousDefaultEventId] = useState(defaultEventId)
+  if (defaultEventId !== previousDefaultEventId) {
+    setPreviousDefaultEventId(defaultEventId)
     setFilters(current => {
       const nextEventId = defaultEventId || ''
       return current.eventId === nextEventId ? current : { ...current, eventId: nextEventId }
     })
-  }, [defaultEventId])
+  }
+
+  // Filtros novos mostram o carregamento já na renderização em que mudam
+  const [loadedFilters, setLoadedFilters] = useState(filters)
+  if (filters !== loadedFilters) {
+    setLoadedFilters(filters)
+    setLoading(true)
+  }
+
+  // Busca sem setState síncrono: o efeito pode chamá-la direto
+  const requestTasks = useCallback(() =>
+    tasksService.list(filters)
+      .then(data => setTasks(Array.isArray(data) ? data : []))
+      .catch(err => showToast(err.message || 'Erro ao carregar tarefas.', 'error'))
+      .finally(() => setLoading(false)),
+  [filters, showToast])
 
   const loadTasks = useCallback(async () => {
     setLoading(true)
-    try {
-      const data = await tasksService.list(filters)
-      setTasks(Array.isArray(data) ? data : [])
-    } catch (err) {
-      showToast(err.message || 'Erro ao carregar tarefas.', 'error')
-    } finally {
-      setLoading(false)
-    }
-  }, [filters, showToast])
+    await requestTasks()
+  }, [requestTasks])
 
   useEffect(() => {
-    loadTasks()
-  }, [loadTasks])
+    requestTasks()
+  }, [requestTasks])
 
   useEffect(() => {
     eventsService.list()

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import FullCalendar from '@fullcalendar/react'
 import dayGridPlugin from '@fullcalendar/daygrid'
@@ -72,16 +72,6 @@ function taskVisualStateClass(task) {
   if (isOverdue(task)) return 'task-overdue-pulse'
   if (isDueSoon(task)) return 'task-due-soon'
   return ''
-}
-
-function deadlineLabel(task) {
-  const start = formatDateBR(task.prazoData)
-  const end = task.prazoDataFim && task.prazoDataFim !== task.prazoData ? formatDateBR(task.prazoDataFim) : ''
-  const startTime = task.prazoHorario ? String(task.prazoHorario).slice(0, 5) : ''
-  const endTime = task.prazoHorarioFim ? String(task.prazoHorarioFim).slice(0, 5) : ''
-  const dateText = end ? `${start} - ${end}` : start
-  if (!startTime) return dateText
-  return endTime ? `${dateText}, ${startTime}-${endTime}` : `${dateText}, ${startTime}`
 }
 
 function finalDeadlineLabel(task) {
@@ -265,9 +255,12 @@ export default function TasksPage() {
     }
   }, [tasks])
 
-  useEffect(() => {
+  // Lista, ordenação ou filtro novos voltam para a primeira página (ajuste na renderização, sem efeito)
+  const [pageResetKey, setPageResetKey] = useState({ count: tasks.length, sortConfig, listFilter })
+  if (pageResetKey.count !== tasks.length || pageResetKey.sortConfig !== sortConfig || pageResetKey.listFilter !== listFilter) {
+    setPageResetKey({ count: tasks.length, sortConfig, listFilter })
     setCurrentPage(1)
-  }, [tasks.length, sortConfig, listFilter])
+  }
 
   const sortedTasks = useMemo(() => sortItems(tasks, sortConfig, {
     titulo: { value: task => task.titulo, type: 'text' },

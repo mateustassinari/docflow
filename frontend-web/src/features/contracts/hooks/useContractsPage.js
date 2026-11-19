@@ -20,16 +20,20 @@ export function useContractsPage() {
     setTimeout(() => setToast(null), 3500)
   }
 
-  const fetchContratos = () => {
-    setLoading(true)
+  // Busca sem setState síncrono: o efeito de carga inicial pode chamá-la direto (loading já começa true)
+  const requestContratos = () =>
     contractsService.list()
       .then(data => setContratos(Array.isArray(data) ? data : []))
       .catch(() => setContratos([]))
       .finally(() => setLoading(false))
+
+  const fetchContratos = () => {
+    setLoading(true)
+    requestContratos()
   }
 
   useEffect(() => {
-    fetchContratos()
+    requestContratos()
   }, [])
 
   const handleSend = async contractId => {

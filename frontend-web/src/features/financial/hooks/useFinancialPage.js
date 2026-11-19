@@ -39,7 +39,6 @@ export function useFinancialPage() {
   const [mostrarTodos, setMostrarTodos] = useState(true)
 
   useEffect(() => {
-    setLoading(true)
     Promise.all([
       eventsService.list(),
       financialService.getCostDefaults(),

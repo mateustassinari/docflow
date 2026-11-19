@@ -25,18 +25,22 @@ export function useAiPage() {
   const [insightsLoading, setInsightsLoading] = useState(true)
   const [insightsError, setInsightsError] = useState(false)
 
-  const loadInsights = () => {
-    setInsightsLoading(true)
-    setInsightsError(false)
+  // Busca sem setState síncrono: o efeito de carga inicial pode chamá-la direto (loading já começa true)
+  const requestInsights = () =>
     aiService
       .getInsights()
       .then(data => setInsights(data?.insights || []))
       .catch(() => setInsightsError(true))
       .finally(() => setInsightsLoading(false))
+
+  const loadInsights = () => {
+    setInsightsLoading(true)
+    setInsightsError(false)
+    requestInsights()
   }
 
   useEffect(() => {
-    loadInsights()
+    requestInsights()
   }, [])
 
   const send = async text => {

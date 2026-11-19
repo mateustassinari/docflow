@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useEffectEvent, useMemo, useState } from 'react'
 import { useToast } from '../../../shared/hooks/useToast'
 import { templatesService } from '../services/templatesService'
 
@@ -20,21 +20,26 @@ export function useTemplatesPage({
   const [openEditorCards, setOpenEditorCards] = useState({})
   const { showToast, toast } = useToast()
 
-  const loadTemplates = async (preferredId = null) => {
-    const data = await templatesService.list()
-    const list = Array.isArray(data) ? data : []
-    setTemplates(list)
+  const loadTemplates = (preferredId = null) =>
+    templatesService.list().then(data => {
+      const list = Array.isArray(data) ? data : []
+      setTemplates(list)
 
-    const nextId = preferredId ?? selectedId ?? list[0]?.id ?? null
-    const selected = list.find(item => item.id === nextId) || null
-    setSelectedId(selected?.id ?? null)
-    setForm(selected ? normalizeTemplate(selected) : emptyTemplate)
-  }
+      const nextId = preferredId ?? selectedId ?? list[0]?.id ?? null
+      const selected = list.find(item => item.id === nextId) || null
+      setSelectedId(selected?.id ?? null)
+      setForm(selected ? normalizeTemplate(selected) : emptyTemplate)
+    })
 
-  useEffect(() => {
+  // Carga inicial: useEffectEvent usa as versões mais recentes de loadTemplates e showToast sem refazer a carga
+  const loadInitialTemplates = useEffectEvent(() => {
     loadTemplates()
       .catch(() => showToast('Não foi possível carregar os templates.', 'error'))
       .finally(() => setLoading(false))
+  })
+
+  useEffect(() => {
+    loadInitialTemplates()
   }, [])
 
   useEffect(() => {
