@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
+import { appInitials } from '../shared/config/app'
 import { useNavigate } from 'react-router-dom'
 import { AlertTriangle, Bell, CalendarClock, CheckCircle2, ClipboardList, Clock, FileWarning, Search, X } from 'lucide-react'
 import { contractsService } from '../features/contracts/services/contractsService'
@@ -299,7 +300,7 @@ export default function TopBar({ breadcrumb = [], title, searchValue = '', onSea
           )}
         </div>
 
-        <div className="avatar">BL</div>
+        <div className="avatar">{appInitials()}</div>
       </div>
     </header>
   )
