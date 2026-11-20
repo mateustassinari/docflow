@@ -4,8 +4,8 @@ import br.com.docflow.application.readmodel.TaskEventSummary;
 import br.com.docflow.application.readmodel.TaskView;
 import br.com.docflow.domain.model.Task;
 import br.com.docflow.domain.model.TaskStatus;
-import com.lowagie.text.pdf.PdfReader;
-import com.lowagie.text.pdf.parser.PdfTextExtractor;
+import org.openpdf.text.pdf.PdfReader;
+import org.openpdf.text.pdf.parser.PdfTextExtractor;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;

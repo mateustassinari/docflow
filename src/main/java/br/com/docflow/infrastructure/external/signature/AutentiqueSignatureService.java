@@ -8,7 +8,7 @@ import br.com.docflow.domain.model.Event;
 import br.com.docflow.domain.model.TipoServico;
 import br.com.docflow.domain.service.SignatureService;
 import tools.jackson.databind.ObjectMapper;
-import com.lowagie.text.pdf.PdfReader;
+import org.openpdf.text.pdf.PdfReader;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.ParameterizedTypeReference;
