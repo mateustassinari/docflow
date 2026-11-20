@@ -4117,3 +4117,47 @@ tbody tr:hover { background: var(--bg); }
 .ai-chat-input .btn-primary {
   padding: 10px 16px;
 }
+
+/* Login */
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--bg);
+}
+
+.login-card {
+  width: 100%;
+  max-width: 380px;
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.login-header h1 {
+  font-size: 22px;
+  margin: 0 0 6px;
+  color: var(--primary);
+}
+
+.login-header p {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.login-error {
+  padding: 10px 12px;
+  border-radius: var(--radius-md, 8px);
+  background: var(--danger-light);
+  color: var(--danger);
+  font-size: 13px;
+}
+
+.login-submit {
+  justify-content: center;
+  width: 100%;
+}

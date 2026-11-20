@@ -1,9 +1,14 @@
 package br.com.docflow.presentation.controller;
 
 import br.com.docflow.application.service.AiAssistantFacade;
+import br.com.docflow.presentation.security.SecurityConfig;
+import br.com.docflow.presentation.security.SecurityResponses;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.Import;
+import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -13,6 +18,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(AiController.class)
+@Import({SecurityConfig.class, SecurityResponses.class})
+@TestPropertySource(properties = "app.security.password=segredo")
+@WithMockUser
 class AiControllerTest {
 
     @Autowired

@@ -38,6 +38,7 @@ presentation ──► application ──► domain ◄── infrastructure
 - O **domínio** não depende de Spring nem de JPA.
 - A **aplicação** fala com o mundo externo por portas (`TaskRepository`, `ContractDocumentGenerator`, `TaskAttachmentStorage`...) e recebe comandos, não DTOs HTTP.
 - A regra de dependência é **verificada por teste** (`ArchitectureTest`, com ArchUnit). Quem a quebrar recebe na mensagem de erro o motivo e o que fazer.
+- **Autenticação com Spring Security**, por sessão no servidor e cookie `HttpOnly`, com proteção CSRF. O motivo da escolha (e por que não JWT) está no [ADR 1](docs/adr/0001-autenticacao-com-sessao-e-cookie.md).
 
 Um monolito é intencional: é um negócio com uma usuária, e distribuir o sistema traria custo sem benefício.
 
@@ -52,7 +53,7 @@ cp .env.example .env        # opcional: sem ele, usa os padrões
 docker compose up --build
 ```
 
-Acesse **http://localhost:8081**. O compose sobe Postgres, backend e frontend (nginx), com o perfil `demo`, que carrega clientes, eventos e tarefas fictícios.
+Acesse **http://localhost:8081** e entre com o usuário **`demo`** e a senha **`demo`**. O compose sobe Postgres, backend e frontend (nginx), com o perfil `demo`, que carrega clientes, eventos e tarefas fictícios.
 
 Para apagar tudo, inclusive o banco:
 ```bash
@@ -64,9 +65,11 @@ docker compose down -v
 Requisitos: Java 17+ para rodar o Gradle (ele baixa o JDK 25 do projeto se faltar), Node 24+ e um Postgres com banco, usuário e senha `docflow` (ou ajuste `DB_URL`, `DB_USERNAME` e `DB_PASSWORD`).
 
 ```bash
-./gradlew bootRun                                   # backend em http://localhost:8080
+APP_PASSWORD=demo ./gradlew bootRun                 # backend em http://localhost:8080 (usuário admin)
 cd frontend-web && npm ci && npm run dev            # frontend em http://localhost:5173
 ```
+
+O Vite repassa `/api` para o backend, então frontend e API ficam na mesma origem, como no Docker.
 
 Para carregar os dados de demonstração, use `SPRING_PROFILES_ACTIVE=demo`.
 
@@ -76,6 +79,7 @@ Tudo é configurado por variáveis de ambiente (veja [`.env.example`](.env.examp
 
 | Integração | Variáveis | Sem configurar |
 | --- | --- | --- |
+| Acesso (login) | `APP_USERNAME`, `APP_PASSWORD`, `SESSION_TIMEOUT` | No compose, `demo` / `demo`; fora dele, a aplicação não sobe sem `APP_PASSWORD` |
 | Identidade do negócio | `APP_BUSINESS_NAME`, `APP_OWNER_NAME`, `APP_SIGNATURE_IMAGE` | Usa "DocFlow" e PDF sem imagem de assinatura |
 | Assinatura (Autentique) | `AUTENTIQUE_API_TOKEN`, `AUTENTIQUE_ACCOUNT_EMAIL`, `AUTENTIQUE_SANDBOX_ENABLED` | Envio para assinatura indisponível (o sandbox é gratuito) |
 | E-mail (SMTP) | `EMAIL_NOTIFICATIONS_ENABLED`, `EMAIL_NOTIFICATIONS_TO`, `SMTP_*` | Lembretes e avisos não são enviados |

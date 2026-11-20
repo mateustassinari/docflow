@@ -27,6 +27,9 @@ services:
       TZ: ${TZ:-America/Sao_Paulo}
       DB_URL: jdbc:postgresql://db:5432/docflow
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-demo}
+      # Login da demo; troque no .env
+      APP_USERNAME: ${APP_USERNAME:-demo}
+      APP_PASSWORD: ${APP_PASSWORD:-demo}
       STORAGE_CONTRACTS_DIR: /app/uploads/contracts
       STORAGE_TASKS_DIR: /app/uploads/tasks
     volumes:
