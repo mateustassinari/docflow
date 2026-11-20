@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { appInitials } from '../shared/config/app'
 import { useNavigate } from 'react-router-dom'
-import { AlertTriangle, Bell, CalendarClock, CheckCircle2, ClipboardList, Clock, FileWarning, Search, X } from 'lucide-react'
+import { AlertTriangle, Bell, CalendarClock, CheckCircle2, ClipboardList, Clock, FileWarning, LogOut, Search, X } from 'lucide-react'
+import { useAuth } from '../features/auth/AuthContext'
 import { contractsService } from '../features/contracts/services/contractsService'
 import { eventsService } from '../features/events/services/eventsService'
 import { tasksService } from '../features/tasks/services/tasksService'
@@ -27,6 +28,7 @@ function daysUntil(value) {
 export default function TopBar({ breadcrumb = [], title, searchValue = '', onSearchChange, searchPlaceholder = 'Buscar evento...' }) {
   const showSearch = typeof onSearchChange === 'function'
   const navigate = useNavigate()
+  const { username, logout } = useAuth()
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [events, setEvents] = useState([])
   const [contracts, setContracts] = useState([])
@@ -300,7 +302,11 @@ export default function TopBar({ breadcrumb = [], title, searchValue = '', onSea
           )}
         </div>
 
-        <div className="avatar">{appInitials()}</div>
+        <div className="avatar" title={username || undefined}>{appInitials()}</div>
+
+        <button className="topbar-icon-btn" onClick={logout} title="Sair">
+          <LogOut size={16} />
+        </button>
       </div>
     </header>
   )

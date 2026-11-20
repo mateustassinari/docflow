@@ -1,8 +1,20 @@
-export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080'
+// Mesma origem da API: em desenvolvimento o Vite faz o proxy de /api, no Docker é o nginx.
+export const API_BASE_URL = import.meta.env.VITE_API_URL || '/api'
+
+/** Disparado quando a API responde 401: a sessão expirou ou o servidor reiniciou. */
+export const UNAUTHORIZED_EVENT = 'docflow:unauthorized'
+
+const SAFE_METHODS = ['GET', 'HEAD', 'OPTIONS']
 
 function buildUrl(path) {
   if (/^https?:\/\//i.test(path)) return path
   return `${API_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`
+}
+
+/** Token CSRF que o Spring Security grava no cookie XSRF-TOKEN; volta no header das escritas. */
+function csrfToken() {
+  const match = document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]+)/)
+  return match ? decodeURIComponent(match[1]) : null
 }
 
 async function parseErrorResponse(response) {
@@ -18,20 +30,27 @@ async function parseErrorResponse(response) {
 }
 
 export async function apiFetch(path, options = {}) {
-  const token = localStorage.getItem('token')
   const body = options.body
-  const isFormData = body instanceof FormData
+  // FormData (upload) e URLSearchParams (login) definem o próprio Content-Type
+  const setsOwnContentType = body instanceof FormData || body instanceof URLSearchParams
+  const method = (options.method || 'GET').toUpperCase()
+  const token = SAFE_METHODS.includes(method) ? null : csrfToken()
 
   const response = await fetch(buildUrl(path), {
     ...options,
+    credentials: 'same-origin',
     headers: {
-      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(setsOwnContentType ? {} : { 'Content-Type': 'application/json' }),
+      ...(token ? { 'X-XSRF-TOKEN': token } : {}),
       ...options.headers,
     },
   })
 
   if (!response.ok) {
+    // As rotas de /auth tratam o 401 na própria tela de login
+    if (response.status === 401 && !path.startsWith('/auth/')) {
+      window.dispatchEvent(new Event(UNAUTHORIZED_EVENT))
+    }
     const error = new Error(await parseErrorResponse(response))
     error.status = response.status
     throw error

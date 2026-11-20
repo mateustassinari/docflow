@@ -1,3 +1,5 @@
+import AuthProvider from '../features/auth/AuthProvider'
+
 export default function AppProviders({ children }) {
-  return children
+  return <AuthProvider>{children}</AuthProvider>
 }
