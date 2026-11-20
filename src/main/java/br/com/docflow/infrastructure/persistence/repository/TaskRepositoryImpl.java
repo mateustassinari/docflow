@@ -101,7 +101,7 @@ public class TaskRepositoryImpl implements TaskRepository {
     }
 
     private Specification<TaskEntity> toSpecification(TaskFilter filter) {
-        Specification<TaskEntity> spec = Specification.where(null);
+        Specification<TaskEntity> spec = Specification.unrestricted();
 
         if (filter.start() != null) {
             LocalDate start = filter.start();

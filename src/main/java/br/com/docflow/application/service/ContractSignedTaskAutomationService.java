@@ -7,8 +7,8 @@ import br.com.docflow.domain.model.Task;
 import br.com.docflow.domain.model.TaskAutomation;
 import br.com.docflow.domain.repository.EventRepository;
 import br.com.docflow.domain.repository.TaskRepository;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -224,7 +224,7 @@ public class ContractSignedTaskAutomationService {
             if (node == null || node.isNull()) {
                 return Optional.empty();
             }
-            String value = node.asText();
+            String value = node.asString();
             return value == null || value.isBlank() ? Optional.empty() : Optional.of(value);
         } catch (Exception ignored) {
             return Optional.empty();

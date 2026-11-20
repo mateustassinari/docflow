@@ -8,7 +8,7 @@ import br.com.docflow.domain.model.Task;
 import br.com.docflow.domain.model.TaskAttachment;
 import br.com.docflow.domain.model.TaskComment;
 import br.com.docflow.domain.model.TaskStatus;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.skyscreamer.jsonassert.JSONAssert;
 import org.skyscreamer.jsonassert.JSONCompareMode;

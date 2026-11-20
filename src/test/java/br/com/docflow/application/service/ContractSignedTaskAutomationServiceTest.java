@@ -9,7 +9,7 @@ import br.com.docflow.domain.model.TaskAutomation;
 import br.com.docflow.domain.model.TipoServico;
 import br.com.docflow.testsupport.InMemoryEventRepository;
 import br.com.docflow.testsupport.InMemoryTaskRepository;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
 import java.time.Clock;

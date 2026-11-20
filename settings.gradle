@@ -1,1 +1,6 @@
+plugins {
+	// Baixa o JDK da toolchain (Java 25) quando a máquina não tem
+	id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
+}
+
 rootProject.name = 'docflow'

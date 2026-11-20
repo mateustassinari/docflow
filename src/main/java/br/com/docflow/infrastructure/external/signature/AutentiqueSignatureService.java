@@ -7,21 +7,17 @@ import br.com.docflow.domain.model.Contract;
 import br.com.docflow.domain.model.Event;
 import br.com.docflow.domain.model.TipoServico;
 import br.com.docflow.domain.service.SignatureService;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.lowagie.text.pdf.PdfReader;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.client.RestClient;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -41,7 +37,7 @@ public class AutentiqueSignatureService implements SignatureService {
     private final boolean accountAutoSignEnabled;
     private final String accountEmail;
     private final boolean sandboxEnabled;
-    private final RestTemplate restTemplate;
+    private final RestClient restClient;
     private final ObjectMapper objectMapper;
 
     public AutentiqueSignatureService(
@@ -53,7 +49,7 @@ public class AutentiqueSignatureService implements SignatureService {
             @Value("${autentique.account.email:}") String accountEmail,
             @Value("${autentique.sandbox.enabled:false}") boolean sandboxEnabled,
             @Value("${autentique.api.timeout-seconds:15}") long timeoutSeconds,
-            RestTemplateBuilder restTemplateBuilder,
+            RestClient.Builder restClientBuilder,
             ObjectMapper objectMapper
     ) {
         this.apiUrl = apiUrl;
@@ -63,20 +59,16 @@ public class AutentiqueSignatureService implements SignatureService {
         this.accountAutoSignEnabled = accountAutoSignEnabled;
         this.accountEmail = accountEmail;
         this.sandboxEnabled = sandboxEnabled;
-        this.restTemplate = restTemplateBuilder
-                .setConnectTimeout(Duration.ofSeconds(timeoutSeconds))
-                .setReadTimeout(Duration.ofSeconds(timeoutSeconds))
-                .build();
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(Duration.ofSeconds(timeoutSeconds));
+        requestFactory.setReadTimeout(Duration.ofSeconds(timeoutSeconds));
+        this.restClient = restClientBuilder.requestFactory(requestFactory).build();
         this.objectMapper = objectMapper;
     }
 
     @Override
     public String sendForSignature(Contract contract, byte[] pdfBytes, List<AdditionalSigner> additionalSigners) throws Exception {
         ensureConfigured();
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.MULTIPART_FORM_DATA);
-        headers.setBearerAuth(apiToken);
 
         String query = "mutation CreateDocumentMutation($document: DocumentInput!, $signers: [SignerInput!]!, $file: Upload!) { "
                 + "createDocument(" + sandboxArgument() + "document: $document, signers: $signers, file: $file) { id } }";
@@ -94,10 +86,9 @@ public class AutentiqueSignatureService implements SignatureService {
         body.add("map", objectMapper.writeValueAsString(Map.of("file", List.of("variables.file"))));
         body.add("file", pdfResource(pdfBytes));
 
-        ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
-                apiUrl, HttpMethod.POST, new HttpEntity<>(body, headers), new ParameterizedTypeReference<>() {});
-        ensureNoGraphqlErrors(response.getBody(), "AUTENTIQUE_CREATE_DOCUMENT_FAILED");
-        Map<String, Object> createDocument = readNestedMap(response.getBody(), "data", "createDocument");
+        Map<String, Object> response = post(MediaType.MULTIPART_FORM_DATA, body);
+        ensureNoGraphqlErrors(response, "AUTENTIQUE_CREATE_DOCUMENT_FAILED");
+        Map<String, Object> createDocument = readNestedMap(response, "data", "createDocument");
         Object id = createDocument.get("id");
         if (id == null) {
             throw new BusinessException("AUTENTIQUE_RESPONSE_INVALID", "Autentique nao retornou o ID do documento");
@@ -148,8 +139,7 @@ public class AutentiqueSignatureService implements SignatureService {
             throw new BusinessException("AUTENTIQUE_SIGNED_FILE_MISSING", "PDF assinado ainda nao esta disponivel no Autentique");
         }
 
-        ResponseEntity<byte[]> response = restTemplate.getForEntity(signedPdfUrl, byte[].class);
-        byte[] body = response.getBody();
+        byte[] body = restClient.get().uri(signedPdfUrl).retrieve().body(byte[].class);
         if (body == null || body.length == 0) {
             throw new BusinessException("AUTENTIQUE_SIGNED_FILE_EMPTY", "Autentique retornou um PDF assinado vazio");
         }
@@ -271,37 +261,37 @@ public class AutentiqueSignatureService implements SignatureService {
         return (Map<String, Object>) second;
     }
 
-    private Map<String, Object> fetchDocument(String autentiqueId, String fields) {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.setBearerAuth(apiToken);
+    /** POST na API GraphQL do Autentique, autenticado com o token da conta. */
+    private Map<String, Object> post(MediaType contentType, Object body) {
+        return restClient.post()
+                .uri(apiUrl)
+                .contentType(contentType)
+                .headers(headers -> headers.setBearerAuth(apiToken))
+                .body(body)
+                .retrieve()
+                .body(new ParameterizedTypeReference<>() {});
+    }
 
+    private Map<String, Object> fetchDocument(String autentiqueId, String fields) {
         String query = "query DocumentQuery($id: UUID!) { document(id: $id) { " + fields + " } }";
         Map<String, Object> body = Map.of(
                 "query", query,
                 "variables", Map.of("id", autentiqueId)
         );
 
-        ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
-                apiUrl, HttpMethod.POST, new HttpEntity<>(body, headers), new ParameterizedTypeReference<>() {});
-        ensureNoGraphqlErrors(response.getBody(), "AUTENTIQUE_FETCH_DOCUMENT_FAILED");
-        return readNestedMap(response.getBody(), "data", "document");
+        Map<String, Object> response = post(MediaType.APPLICATION_JSON, body);
+        ensureNoGraphqlErrors(response, "AUTENTIQUE_FETCH_DOCUMENT_FAILED");
+        return readNestedMap(response, "data", "document");
     }
 
     private void signWithApiAccount(String autentiqueId) {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.setBearerAuth(apiToken);
-
         String query = "mutation SignDocumentMutation($id: UUID!) { signDocument(id: $id) }";
         Map<String, Object> body = Map.of(
                 "query", query,
                 "variables", Map.of("id", autentiqueId)
         );
 
-        ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
-                apiUrl, HttpMethod.POST, new HttpEntity<>(body, headers), new ParameterizedTypeReference<>() {});
-        Map<?, ?> responseBody = response.getBody();
+        Map<?, ?> responseBody = post(MediaType.APPLICATION_JSON, body);
         ensureNoGraphqlErrors(responseBody, "AUTENTIQUE_AUTO_SIGN_FAILED");
         if (responseBody == null || !(responseBody.get("data") instanceof Map<?, ?> data) || data.get("signDocument") == null) {
             throw new BusinessException("AUTENTIQUE_AUTO_SIGN_FAILED", "Autentique nao confirmou a assinatura automatica da conta da API");
