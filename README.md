@@ -1,5 +1,7 @@
 # DocFlow
 
+[![CI](https://github.com/mateustassinari/docflow/actions/workflows/ci.yml/badge.svg)](https://github.com/mateustassinari/docflow/actions/workflows/ci.yml)
+
 Gestão de contratos, eventos e operação para negócios de arte em eventos (pintura ao vivo, aquarela, encomendas e identidade visual). Ele substitui um fluxo manual (documentos soltos, plataforma de assinatura e lembretes "de cabeça") por um processo integrado, do contrato à entrega.
 
 O sistema nasceu para um negócio real e está em uso. Este repositório é a versão pública: os dados do negócio ficam na configuração, e o código vem com dados de demonstração.
@@ -59,7 +61,7 @@ docker compose down -v
 
 ### Sem Docker
 
-Requisitos: Java 21, Node 20+ e um Postgres com banco, usuário e senha `docflow` (ou ajuste `DB_URL`, `DB_USERNAME` e `DB_PASSWORD`).
+Requisitos: Java 17+ para rodar o Gradle (ele baixa o JDK 25 do projeto se faltar), Node 24+ e um Postgres com banco, usuário e senha `docflow` (ou ajuste `DB_URL`, `DB_USERNAME` e `DB_PASSWORD`).
 
 ```bash
 ./gradlew bootRun                                   # backend em http://localhost:8080
@@ -97,6 +99,8 @@ Os testes incluem:
 - **Persistência** com Postgres real via Testcontainers, rodando as migrations Flyway (**precisa do Docker**);
 - **Contrato JSON** da API de tarefas e **conteúdo dos PDFs** (pelo texto extraído).
 
+O CI (GitHub Actions) roda os testes, o lint e o build do frontend e o build das imagens Docker a cada push e pull request.
+
 ## Stack
 
-Java 21 · Spring Boot 3.2 · Spring Data JPA · PostgreSQL · Flyway · OpenPDF · JUnit 5 · AssertJ · ArchUnit · Testcontainers · React 19 · Vite · FullCalendar · Docker Compose · nginx
+Java 25 · Spring Boot 4.2 · Spring Data JPA · PostgreSQL · Flyway · OpenPDF · JUnit 6 · AssertJ · ArchUnit · Testcontainers · React 19 · Vite · FullCalendar · Docker Compose · nginx · GitHub Actions

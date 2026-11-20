@@ -3,16 +3,12 @@ package br.com.docflow.infrastructure.external.ai;
 import br.com.docflow.domain.exception.BusinessException;
 import br.com.docflow.domain.service.AiAssistantService;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClientException;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.client.RestClient;
 
 import java.time.Duration;
 import java.util.HashMap;
@@ -22,7 +18,7 @@ import java.util.Map;
 /**
  * Adaptador que fala com um modelo rodando localmente via Ollama (http://localhost:11434).
  * 100% local: nenhum dado sai da máquina e não há chave/segredo.
- * Espelha o padrão de {@code AutentiqueSignatureService} (RestTemplateBuilder + @Value).
+ * Espelha o padrão de {@code AutentiqueSignatureService} (RestClient + @Value).
  */
 @SuppressWarnings("null")
 @Service
@@ -36,7 +32,7 @@ public class OllamaAiService implements AiAssistantService {
     private final boolean think;
     private final int numCtx;
     private final double temperature;
-    private final RestTemplate restTemplate;
+    private final RestClient restClient;
 
     public OllamaAiService(
             @Value("${ai.enabled:true}") boolean enabled,
@@ -48,7 +44,7 @@ public class OllamaAiService implements AiAssistantService {
             @Value("${ai.ollama.think:false}") boolean think,
             @Value("${ai.ollama.num-ctx:8192}") int numCtx,
             @Value("${ai.ollama.temperature:0.6}") double temperature,
-            RestTemplateBuilder restTemplateBuilder
+            RestClient.Builder restClientBuilder
     ) {
         this.enabled = enabled;
         this.baseUrl = baseUrl;
@@ -59,10 +55,10 @@ public class OllamaAiService implements AiAssistantService {
         this.numCtx = numCtx;
         this.temperature = temperature;
         // Conexão rápida (Ollama é local); leitura folgada, pois o modelo pode levar 10-30s+.
-        this.restTemplate = restTemplateBuilder
-                .setConnectTimeout(Duration.ofSeconds(10))
-                .setReadTimeout(Duration.ofSeconds(timeoutSeconds))
-                .build();
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(Duration.ofSeconds(10));
+        requestFactory.setReadTimeout(Duration.ofSeconds(timeoutSeconds));
+        this.restClient = restClientBuilder.requestFactory(requestFactory).build();
     }
 
     @Override
@@ -73,9 +69,6 @@ public class OllamaAiService implements AiAssistantService {
     @Override
     public String generate(String systemPrompt, String userPrompt) {
         ensureEnabled();
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
 
         Map<String, Object> body = new HashMap<>();
         body.put("model", model);
@@ -102,12 +95,13 @@ public class OllamaAiService implements AiAssistantService {
         }
 
         try {
-            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
-                    baseUrl + "/api/chat",
-                    HttpMethod.POST,
-                    new HttpEntity<>(body, headers),
-                    new ParameterizedTypeReference<>() {});
-            return extractContent(response.getBody());
+            Map<String, Object> response = restClient.post()
+                    .uri(baseUrl + "/api/chat")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(body)
+                    .retrieve()
+                    .body(new ParameterizedTypeReference<>() {});
+            return extractContent(response);
         } catch (RestClientException ex) {
             // Ollama parado / inacessível: degrada como 400 (via GlobalExceptionHandler), não 500.
             throw new BusinessException(

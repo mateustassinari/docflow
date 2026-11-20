@@ -1,5 +1,5 @@
 # Backend do DocFlow (Spring Boot). Os testes rodam fora da imagem: ./gradlew test
-FROM eclipse-temurin:21-jdk AS build
+FROM eclipse-temurin:25-jdk AS build
 WORKDIR /workspace
 
 # Dependências primeiro, para o cache do Docker reaproveitar quando só o código muda
@@ -10,7 +10,7 @@ RUN ./gradlew --no-daemon dependencies > /dev/null
 COPY src src
 RUN ./gradlew --no-daemon bootJar -x test
 
-FROM eclipse-temurin:21-jre-alpine
+FROM eclipse-temurin:25-jre-alpine
 RUN addgroup -S docflow && adduser -S docflow -G docflow
 WORKDIR /app
 COPY --from=build /workspace/build/libs/docflow-0.0.1-SNAPSHOT.jar app.jar
