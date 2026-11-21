@@ -165,3 +165,11 @@ gradle.properties
 docs/private/
 
 backup/
+
+# Arquivos de trabalho do Structurizr, se o modelo for aberto no modo local
+docs/.structurizr/
+docs/workspace.json
+
+# Site de documentação (gerado por docs/gerar-diagramas.sh e mkdocs build)
+site/
+docs/diagramas/

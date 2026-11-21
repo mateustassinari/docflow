@@ -1,0 +1,56 @@
+name: Documentação
+
+on:
+  push:
+    branches: [main]
+    paths: ["docs/**", "mkdocs.yml", ".github/workflows/docs.yml"]
+  # Em PRs, só gera o site, para pegar erro no modelo ou link quebrado antes do merge
+  pull_request:
+    paths: ["docs/**", "mkdocs.yml", ".github/workflows/docs.yml"]
+  workflow_dispatch:
+
+concurrency:
+  group: docs-${{ github.ref }}
+  # Não interrompe uma publicação no meio; em PRs, a execução antiga é cancelada
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Gerar o site
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # Modelo C4 (docs/workspace.dsl) -> C4-PlantUML -> SVG em docs/diagramas
+      - name: Gerar os diagramas
+        run: ./docs/gerar-diagramas.sh
+
+      # Páginas Markdown de docs/ e os ADRs viram o site; --strict falha com link quebrado
+      - name: Gerar o site com o MkDocs Material
+        env:
+          NO_MKDOCS_2_WARNING: "1"
+        run: |
+          docker build -t docflow-docs docs
+          docker run --rm --user "$(id -u):$(id -g)" -e NO_MKDOCS_2_WARNING -v "$PWD:/docs" docflow-docs build --strict
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: site
+
+  deploy:
+    name: Publicar no GitHub Pages
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5
