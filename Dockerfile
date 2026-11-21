@@ -11,10 +11,13 @@ COPY src src
 RUN ./gradlew --no-daemon bootJar -x test
 
 FROM eclipse-temurin:25-jre-alpine
+# Correções de segurança dos pacotes do sistema publicadas depois da imagem base
+RUN apk upgrade --no-cache
 RUN addgroup -S docflow && adduser -S docflow -G docflow
 WORKDIR /app
+# O jar pertence ao root (o usuário da aplicação só lê); a aplicação só escreve em uploads
 COPY --from=build /workspace/build/libs/docflow-0.0.1-SNAPSHOT.jar app.jar
-RUN mkdir -p /app/uploads && chown -R docflow:docflow /app
+RUN mkdir -p /app/uploads && chown docflow:docflow /app/uploads
 USER docflow
 
 EXPOSE 8080

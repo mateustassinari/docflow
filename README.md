@@ -53,7 +53,7 @@ cp .env.example .env        # opcional: sem ele, usa os padrões
 docker compose up --build
 ```
 
-Acesse **http://localhost:8081** e entre com o usuário **`demo`** e a senha **`demo`**. O compose sobe Postgres, backend e frontend (nginx), com o perfil `demo`, que carrega clientes, eventos e tarefas fictícios.
+Acesse **http://localhost:8081** e entre com o usuário **`demo`** e a senha **`demo`**. Por padrão, só este computador acessa (`BIND_ADDRESS=127.0.0.1`); para abrir na rede local, troque a senha antes. O compose sobe Postgres, backend e frontend (nginx), com o perfil `demo`, que carrega clientes, eventos e tarefas fictícios.
 
 Para apagar tudo, inclusive o banco:
 ```bash
@@ -79,7 +79,7 @@ Tudo é configurado por variáveis de ambiente (veja [`.env.example`](.env.examp
 
 | Integração | Variáveis | Sem configurar |
 | --- | --- | --- |
-| Acesso (login) | `APP_USERNAME`, `APP_PASSWORD`, `SESSION_TIMEOUT` | No compose, `demo` / `demo`; fora dele, a aplicação não sobe sem `APP_PASSWORD` |
+| Acesso (login) | `APP_USERNAME`, `APP_PASSWORD`, `SESSION_TIMEOUT`, `BIND_ADDRESS` | No compose, `demo` / `demo`; fora dele, a aplicação não sobe sem `APP_PASSWORD` |
 | Identidade do negócio | `APP_BUSINESS_NAME`, `APP_OWNER_NAME`, `APP_SIGNATURE_IMAGE` | Usa "DocFlow" e PDF sem imagem de assinatura |
 | Assinatura (Autentique) | `AUTENTIQUE_API_TOKEN`, `AUTENTIQUE_ACCOUNT_EMAIL`, `AUTENTIQUE_SANDBOX_ENABLED` | Envio para assinatura indisponível (o sandbox é gratuito) |
 | E-mail (SMTP) | `EMAIL_NOTIFICATIONS_ENABLED`, `EMAIL_NOTIFICATIONS_TO`, `SMTP_*` | Lembretes e avisos não são enviados |
@@ -90,6 +90,14 @@ No Docker, para usar o Ollama da sua máquina:
 AI_ENABLED=true
 OLLAMA_URL=http://host.docker.internal:11434
 ```
+
+## Segurança
+
+- **Login com sessão** e cookie `HttpOnly`/`SameSite=Lax`, proteção **CSRF** em toda escrita e senha guardada só como hash BCrypt ([ADR 1](docs/adr/0001-autenticacao-com-sessao-e-cookie.md)).
+- **Limite de tentativas de login** no nginx (5 por minuto por IP).
+- **Cabeçalhos de segurança** no nginx: CSP, `X-Frame-Options`, `nosniff`, `Referrer-Policy`.
+- **Anexos tratados como não confiáveis:** nome escapado no download, só tipos de uma lista permitida, gravação com nome gerado pelo servidor.
+- **Docker:** só o nginx é publicado, e só em `127.0.0.1` por padrão; o backend roda sem root e não consegue alterar o próprio jar.
 
 ## Testes
 

@@ -51,12 +51,12 @@ Positivas:
 
 - O cookie de sessão é `HttpOnly`: um script injetado na página não consegue lê-lo nem enviá-lo para fora.
 - Logout e expiração são imediatos e controlados pelo servidor (`SESSION_TIMEOUT`, padrão de 8 horas sem uso).
-- Os PDFs e downloads funcionam sem mudança, porque o navegador envia o cookie sozinho.
+- Os PDFs e downloads funcionam sem mudança, porque o navegador envia o cookie sozinho. Para a pré-visualização em `iframe`, o `X-Frame-Options` padrão do Spring Security (`DENY`) foi trocado por `SAMEORIGIN`.
 - Pouco código: login, logout, sessão e CSRF vêm prontos do Spring Security, configurados em `SecurityConfig`.
 
 Negativas e limites aceitos:
 
 - **As sessões ficam na memória do backend.** Reiniciar o servidor desloga a usuária, e duas instâncias do backend não compartilhariam sessões. Se um dia for preciso, o Spring Session guarda as sessões no Postgres sem mudar o resto.
-- **Sem limite de tentativas de login.** Com uma senha forte e o sistema numa rede doméstica, o risco é baixo. Se o sistema for exposto na internet, entra um limite por IP (no nginx ou num filtro).
+- **O limite de tentativas de login fica no nginx** (5 por minuto por IP, com folga para 5 seguidas; depois, 429). Rodando sem Docker, não há limite: o backend sozinho não conta tentativas.
 - **O frontend precisa estar na mesma origem da API.** Hospedar o frontend em outro domínio exigiria voltar com o CORS, já com `allowCredentials`.
 - **Em produção, é preciso HTTPS** (`SESSION_COOKIE_SECURE=true`): sem ele, o cookie de sessão trafega em texto puro na rede.

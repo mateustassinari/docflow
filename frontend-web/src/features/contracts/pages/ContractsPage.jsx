@@ -57,7 +57,7 @@ export default function Contratos() {
                       <td>{contract.template?.nome || '-'}</td>
                       <td><span className={`status-badge ${statusInfo.cls}`}>{statusInfo.label}</span></td>
                       <td>
-                        {contract.pdfUrl
+                        {contract.hasPdf
                           ? <span className="inline-icon-text"><FileText size={13} /> Gerado</span>
                           : <span className="text-muted">Pendente</span>}
                       </td>

@@ -5,7 +5,7 @@ export default function ContractPdfPreview({
   contract,
   onReviewData,
 }) {
-  if (!contract?.pdfUrl) return null
+  if (!contract?.hasPdf) return null
 
   return (
     <div className="contract-pdf-preview">

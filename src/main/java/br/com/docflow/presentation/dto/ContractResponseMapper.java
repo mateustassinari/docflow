@@ -20,7 +20,7 @@ public final class ContractResponseMapper {
         ContractResponse response = new ContractResponse();
         response.setId(contract.getId());
         response.setStatus(contract.getStatus() != null ? contract.getStatus().name() : null);
-        response.setPdfUrl(contract.getPdfUrl());
+        response.setHasPdf(contract.getPdfUrl() != null && !contract.getPdfUrl().isBlank());
         response.setAutentiqueId(contract.getAutentiqueId());
         response.setEvent(toEventSummary(contract.getEvent()));
         response.setTemplate(toTemplateSummary(contract.getTemplate()));

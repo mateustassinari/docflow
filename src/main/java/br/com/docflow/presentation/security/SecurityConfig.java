@@ -43,6 +43,8 @@ public class SecurityConfig {
                 .exceptionHandling(exceptions -> exceptions
                         .authenticationEntryPoint(responses::unauthorized)
                         .accessDeniedHandler(responses::forbidden))
+                // O frontend mostra os PDFs da API dentro de iframes: liberado só para a própria origem
+                .headers(headers -> headers.frameOptions(frame -> frame.sameOrigin()))
                 // Token CSRF num cookie legível pelo JavaScript, devolvido no header X-XSRF-TOKEN
                 .csrf(csrf -> csrf.spa())
                 // A API responde 401 em vez de redirecionar, então não há requisição para guardar e repetir após o login

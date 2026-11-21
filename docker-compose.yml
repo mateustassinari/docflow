@@ -48,7 +48,9 @@ services:
       args:
         VITE_APP_NAME: ${APP_BUSINESS_NAME:-DocFlow}
     ports:
-      - "8081:80"
+      # Só este computador acessa. Para abrir na rede (ex.: pelo celular), use BIND_ADDRESS=0.0.0.0 no .env
+      # e troque a senha padrão antes.
+      - "${BIND_ADDRESS:-127.0.0.1}:8081:80"
     depends_on:
       - backend
 

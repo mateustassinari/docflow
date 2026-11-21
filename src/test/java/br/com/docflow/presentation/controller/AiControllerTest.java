@@ -12,7 +12,10 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -36,5 +39,16 @@ class AiControllerTest {
         mockMvc.perform(get("/ai/status"))
                 .andExpect(status().isOk())
                 .andExpect(content().json("{\"enabled\": false}", true));
+    }
+
+    @Test
+    void chatShouldRejectHugeQuestionsBeforeReachingTheModel() throws Exception {
+        String question = "a".repeat(2001);
+
+        mockMvc.perform(post("/ai/chat").with(csrf())
+                        .contentType("application/json")
+                        .content("{\"question\": \"" + question + "\"}"))
+                .andExpect(status().isBadRequest());
+        verifyNoInteractions(aiAssistantFacade);
     }
 }

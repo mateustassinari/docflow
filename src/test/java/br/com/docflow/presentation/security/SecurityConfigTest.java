@@ -22,6 +22,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(controllers = {AuthController.class, AiController.class})
@@ -91,6 +92,12 @@ class SecurityConfigTest {
         mockMvc.perform(post("/auth/logout").session(session).with(csrf()))
                 .andExpect(status().isNoContent());
         assertThat(session.isInvalid()).isTrue();
+    }
+
+    @Test
+    void pdfPreviewShouldBeAllowedInIframesOfTheSameOriginOnly() throws Exception {
+        mockMvc.perform(get("/auth/session"))
+                .andExpect(header().string("X-Frame-Options", "SAMEORIGIN"));
     }
 
     @Test
