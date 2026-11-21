@@ -77,7 +77,7 @@ export default function TopBar({ breadcrumb = [], title, searchValue = '', onSea
       .filter(event => !contractsByEvent.has(event.id))
       .filter(event => !isDismissed(`event-no-contract-${event.id}`))
     const missingPdfContracts = contracts
-      .filter(contract => !contract.pdfUrl)
+      .filter(contract => !contract.hasPdf)
       .filter(contract => !isDismissed(`contract-missing-pdf-${contract.id}`))
     const upcomingEvents = events
       .map(event => ({ event, days: daysUntil(event.data) }))

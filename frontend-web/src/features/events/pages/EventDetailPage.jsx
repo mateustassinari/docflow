@@ -616,7 +616,7 @@ export default function EventoDetalhe() {
                     <div className="contract-file-icon">PDF</div>
                     <div className="contract-file-body">
                       <div className="contract-file-title">{contrato.template?.nome || 'Contrato Base'}</div>
-                      <div className="contract-file-subtitle">{contrato.pdfUrl ? 'PDF gerado com sucesso' : 'Erro ao gerar PDF'}</div>
+                      <div className="contract-file-subtitle">{contrato.hasPdf ? 'PDF gerado com sucesso' : 'Erro ao gerar PDF'}</div>
                     </div>
                   </div>
                   <div className="contract-link-row">

@@ -10,7 +10,8 @@ import java.time.LocalTime;
 public class ContractResponse {
     private Long id;
     private String status;
-    private String pdfUrl;
+    /** Se o PDF existe. O caminho no servidor não sai da API; o PDF é baixado em /contracts/{id}/pdf. */
+    private boolean hasPdf;
     private String autentiqueId;
     private EventSummary event;
     private TemplateSummary template;

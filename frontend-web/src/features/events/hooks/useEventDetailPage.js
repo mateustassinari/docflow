@@ -305,7 +305,7 @@ export function useEventDetailPage({
   }
 
   const handleViewPdf = () => {
-    if (!contrato?.pdfUrl) {
+    if (!contrato?.hasPdf) {
       showToast('PDF ainda não foi gerado para este contrato.', 'error')
       return
     }

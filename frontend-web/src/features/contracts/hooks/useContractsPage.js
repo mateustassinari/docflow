@@ -54,7 +54,7 @@ export function useContractsPage() {
     evento: { value: item => item.event?.tipoEvento, type: 'text' },
     template: { value: item => item.template?.nome, type: 'text' },
     status: { value: item => CONTRACT_STATUS_MAP[item.status]?.label || item.status, type: 'text' },
-    pdf: { value: item => item.pdfUrl ? 'Gerado' : 'Pendente', type: 'text' },
+    pdf: { value: item => item.hasPdf ? 'Gerado' : 'Pendente', type: 'text' },
   }), [contratos, sortConfig])
 
   const handleSort = key => {
