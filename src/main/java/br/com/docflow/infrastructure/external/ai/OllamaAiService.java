@@ -43,7 +43,7 @@ public class OllamaAiService implements AiAssistantService {
             @Value("${ai.ollama.num-thread:6}") int numThread,
             @Value("${ai.ollama.think:false}") boolean think,
             @Value("${ai.ollama.num-ctx:8192}") int numCtx,
-            @Value("${ai.ollama.temperature:0.6}") double temperature,
+            @Value("${ai.ollama.temperature:0.2}") double temperature,
             RestClient.Builder restClientBuilder
     ) {
         this.enabled = enabled;
@@ -77,8 +77,9 @@ public class OllamaAiService implements AiAssistantService {
         // (em CPUs híbridas Intel, usar todos os núcleos torna a geração muito mais lenta,
         // pois cada token espera o E-core mais lento).
         // num_ctx: sem ele o Ollama usa a janela padrão (2-4k tokens) e corta o início do prompt
-        // em silêncio, levando junto a persona e parte dos dados. temperature um pouco abaixo
-        // do padrão (0.8) reduz invenção sem deixar o texto robótico.
+        // em silêncio, levando junto a persona e parte dos dados. temperature baixa (0.2): as
+        // respostas são factuais (números e listas do contexto), e cada ponto a mais de
+        // criatividade é chance de o modelo pequeno reclassificar ou inventar um dado.
         body.put("options", Map.of(
                 "num_predict", numPredict,
                 "num_thread", numThread,
