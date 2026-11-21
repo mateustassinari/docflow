@@ -3,6 +3,7 @@ site_description: Arquitetura e decisões do DocFlow
 site_url: https://mateustassinari.github.io/docflow/
 repo_url: https://github.com/mateustassinari/docflow
 repo_name: mateustassinari/docflow
+copyright: Copyright &copy; 2026 Mateus Tassinari · <a href="https://polyformproject.org/licenses/strict/1.0.0">PolyForm Strict 1.0.0</a>
 
 docs_dir: docs
 # Em docs/ também ficam o modelo C4, as ferramentas do site e anotações privadas, que não são páginas

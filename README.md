@@ -118,3 +118,7 @@ O CI (GitHub Actions) roda os testes, o lint e o build do frontend e o build das
 ## Stack
 
 Java 25 · Spring Boot 4.2 · Spring Data JPA · PostgreSQL · Flyway · OpenPDF · JUnit 6 · AssertJ · ArchUnit · Testcontainers · React 19 · Vite · FullCalendar · Docker Compose · nginx · GitHub Actions
+
+## Licença
+
+Código-fonte disponível para estudo e avaliação, sob a [PolyForm Strict 1.0.0](LICENSE): você pode ver o código e rodar o sistema para fins não comerciais. Modificar, redistribuir ou usar comercialmente não é permitido.
