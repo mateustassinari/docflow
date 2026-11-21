@@ -22,6 +22,7 @@ import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.TemporalAdjusters;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.HashMap;
@@ -31,6 +32,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
 import java.util.TreeMap;
+import java.util.function.Function;
 
 /**
  * Monta um resumo textual compacto dos dados do sistema (financeiro, margem, eventos,
@@ -84,16 +86,16 @@ public class AiContextBuilder {
     }
 
     /**
-     * Para perguntas sobre prazos de tarefas (atrasadas, de hoje, da semana, dos próximos 7 dias),
-     * devolve só o grupo que responde à pergunta, já filtrado. Com o contexto inteiro, o modelo
+     * Para perguntas sobre prazos de tarefas (atrasadas, de hoje, da semana, dos próximos 7 dias)
+     * ou sobre pagamentos em atraso, devolve só a lista que responde à pergunta, já filtrada. Com o contexto inteiro, o modelo
      * pequeno puxava tarefas do grupo vizinho; com só o grupo certo, ele apenas redige a lista.
      * Vazio quando a pergunta não é desse tipo, e o assistente usa o contexto completo.
      */
     @Transactional(readOnly = true)
     public Optional<String> taskDeadlineFocus(String question) {
         String q = normalize(question);
-        if (q.matches(".*(pagament|receb|cobran|valor|dinheiro|financ).*")) {
-            return Optional.empty();
+        if (q.matches(".*(pagament|receb|cobran|valor|dinheiro|financ|dev).*")) {
+            return overduePaymentsFocus(q);
         }
         LocalDate today = LocalDate.now(clock);
         TaskBuckets tasks = taskBuckets(today);
@@ -109,6 +111,105 @@ public class AiContextBuilder {
             appendTaskGroup(sb, "TAREFAS PARA HOJE", tasks.hoje());
         } else {
             return Optional.empty();
+        }
+        return Optional.of(sb.toString());
+    }
+
+    /**
+     * Pontos de atenção para os insights, já calculados e em ordem de importância (o que pede ação
+     * primeiro). O modelo só transforma cada fato numa frase. Listas vazias e zeros ficam de fora.
+     */
+    @Transactional(readOnly = true)
+    public List<String> insightFacts() {
+        List<Event> events = eventRepository.findAll();
+        LocalDate today = LocalDate.now(clock);
+        Map<Long, ContractStatus> contracts = contractStatusByEvent();
+        TaskBuckets tasks = taskBuckets(today);
+        List<Event> futuros = events.stream().filter(e -> isFuture(e, today)).sorted(Comparator.comparing(Event::getData)).toList();
+        List<String> fatos = new ArrayList<>();
+
+        List<Event> emAtraso = events.stream().filter(e -> isOverdue(e, today) && pendenteDoEvento(e).signum() > 0)
+                .sorted(Comparator.comparing(Event::getData)).toList();
+        addList(fatos, "Pagamentos em atraso (eventos já realizados e não quitados)", emAtraso,
+                e -> clientName(e) + " (" + money(pendenteDoEvento(e)) + ")");
+        addList(fatos, "Tarefas atrasadas (o prazo já passou e ainda não foram concluídas)", tasks.atrasadas(), this::taskFact);
+        addList(fatos, "Eventos futuros sem contrato",
+                futuros.stream().filter(e -> SEM_CONTRATO.equals(contractLabel(e, contracts))).toList(),
+                e -> clientName(e) + " (" + e.getData().format(DATE) + ")");
+        addList(fatos, "Contratos aguardando assinatura da cliente",
+                futuros.stream().filter(e -> CONTRATO_AGUARDANDO.equals(contractLabel(e, contracts))).toList(),
+                e -> clientName(e) + " (" + e.getData().format(DATE) + ")");
+        addList(fatos, "Contratos gerados ainda não enviados para assinatura",
+                futuros.stream().filter(e -> CONTRATO_GERADO.equals(contractLabel(e, contracts))).toList(),
+                e -> clientName(e) + " (" + e.getData().format(DATE) + ")");
+        addList(fatos, "Tarefas para hoje", tasks.hoje(), this::taskFact);
+        addList(fatos, "Tarefas nos próximos 7 dias", tasks.proximos7Dias(), this::taskFact);
+        if (!futuros.isEmpty()) {
+            Event proximo = futuros.getFirst();
+            fatos.add("Próximo evento: " + clientName(proximo) + " em " + proximo.getData().format(DATE)
+                    + " (" + label(proximo.getTipoServico()) + ").");
+        }
+        BigDecimal aReceber = futuros.stream().map(this::pendenteDoEvento).filter(v -> v.signum() > 0).reduce(BigDecimal.ZERO, BigDecimal::add);
+        if (aReceber.signum() > 0) {
+            String quais = futuros.size() == 1 ? "do único evento futuro" : "dos " + futuros.size() + " eventos futuros, somados";
+            fatos.add("Total a receber " + quais + ": " + money(aReceber) + ".");
+        }
+        Map<TipoServico, Long> porServico = new EnumMap<>(TipoServico.class);
+        events.stream().filter(e -> e.getTipoServico() != null).forEach(e -> porServico.merge(e.getTipoServico(), 1L, Long::sum));
+        porServico.entrySet().stream().max(Map.Entry.comparingByValue()).ifPresent(top ->
+                fatos.add("Serviço mais contratado: " + label(top.getKey()) + " (" + top.getValue() + " de " + events.size() + " eventos)."));
+        return fatos;
+    }
+
+    /** Nomes dos clientes, para conferir se um insight atribui um fato à pessoa certa. */
+    @Transactional(readOnly = true)
+    public List<String> clientNames() {
+        return eventRepository.findAll().stream()
+                .map(e -> e.getClient() != null ? e.getClient().getNome() : null)
+                .filter(n -> n != null && !n.isBlank())
+                .distinct()
+                .toList();
+    }
+
+    /** Data de hoje por extenso, para o modelo situar "atrasado", "hoje" e "próximos dias". */
+    public String todayLabel() {
+        LocalDate today = LocalDate.now(clock);
+        return today.format(WEEKDAY) + ", " + today.format(DATE);
+    }
+
+    private <T> void addList(List<String> fatos, String titulo, List<T> itens, Function<T, String> descricao) {
+        if (itens.isEmpty()) {
+            return;
+        }
+        List<String> nomes = itens.stream().limit(3).map(descricao).toList();
+        String resto = itens.size() > 3 ? " e mais " + (itens.size() - 3) : "";
+        fatos.add(titulo + ": " + itens.size() + " — " + String.join(", ", nomes) + resto + ".");
+    }
+
+    private String taskFact(TaskView view) {
+        String titulo = view.task().getTitulo() == null || view.task().getTitulo().isBlank() ? "(sem título)" : view.task().getTitulo();
+        String cliente = view.event() != null && view.event().clienteNome() != null ? view.event().clienteNome() + ", " : "";
+        return titulo + " (" + cliente + "prazo " + deadline(view).format(DATE) + ")";
+    }
+
+    /** Perguntas sobre pagamentos em atraso: só a lista de quem deve, com o valor de cada um. */
+    private Optional<String> overduePaymentsFocus(String q) {
+        if (!q.matches(".*(atras|devendo|deve|em aberto).*")) {
+            return Optional.empty();
+        }
+        LocalDate today = LocalDate.now(clock);
+        List<Event> emAtraso = eventRepository.findAll().stream()
+                .filter(e -> isOverdue(e, today) && pendenteDoEvento(e).signum() > 0)
+                .sorted(Comparator.comparing(Event::getData))
+                .toList();
+        StringBuilder sb = new StringBuilder("Data de hoje: ").append(today.format(WEEKDAY)).append(", ").append(today.format(DATE)).append("\n");
+        sb.append("PAGAMENTOS EM ATRASO (eventos já realizados e não quitados):\n");
+        if (emAtraso.isEmpty()) {
+            sb.append("  nenhuma\n");
+        }
+        for (Event e : emAtraso) {
+            sb.append("  - ").append(clientName(e)).append(" | evento ").append(e.getData().format(DATE))
+                    .append(" | pendente ").append(money(pendenteDoEvento(e))).append("\n");
         }
         return Optional.of(sb.toString());
     }

@@ -177,9 +177,24 @@ class AiContextBuilderTest {
 
     @Test
     void otherQuestionsShouldUseTheFullContext() {
-        assertThat(builder.taskDeadlineFocus("Tenho pagamentos atrasados?")).as("pagamento atrasado não é tarefa").isEmpty();
+        assertThat(builder.taskDeadlineFocus("Tenho pagamentos atrasados?")).get(STRING)
+                .as("pagamento atrasado não é tarefa: vem a lista de quem deve")
+                .contains("PAGAMENTOS EM ATRASO", "Ana | evento 10/10/2026 | pendente R$ 700.00")
+                .doesNotContain("Bia", "TAREFAS");
         assertThat(builder.taskDeadlineFocus("Quanto recebi esta semana?")).isEmpty();
         assertThat(builder.taskDeadlineFocus("Qual é o meu próximo evento?")).isEmpty();
+    }
+
+    @Test
+    void insightFactsShouldListOnlyWhatNeedsAttentionMostImportantFirst() {
+        List<String> facts = builder.insightFacts();
+
+        assertThat(facts).containsExactly(
+                "Pagamentos em atraso (eventos já realizados e não quitados): 1 — Ana (R$ 700.00).",
+                "Eventos futuros sem contrato: 1 — Bia (20/12/2026).",
+                "Próximo evento: Bia em 20/12/2026 (Pintura ao Vivo).",
+                "Total a receber do único evento futuro: R$ 1500.00.",
+                "Serviço mais contratado: Pintura ao Vivo (3 de 3 eventos).");
     }
 
     private static String section(String text, String from, String to) {

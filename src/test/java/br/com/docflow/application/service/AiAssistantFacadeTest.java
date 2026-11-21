@@ -25,39 +25,33 @@ class AiAssistantFacadeTest {
 
     @Test
     void shouldDropGarbageLinesWhenModelDegenerates() {
-        when(contextBuilder.build()).thenReturn("contexto");
+        when(contextBuilder.insightFacts()).thenReturn(List.of("Pagamentos em atraso: 6 — Ana.", "Tarefas para hoje: 2."));
         when(ai.generate(anyString(), anyString())).thenReturn("""
                 !;
+                1. Ana tem 6 eventos em atraso e deve priorizar a cobrança.
                 ;
-                Ana tem 6 eventos em atraso e deve priorizar pagá-los.
-                !;
-                - 💰 Três clientes ainda não pagaram o sinal.""");
+                2. - 💰 Duas tarefas vencem hoje.""");
 
-        List<String> insights = facade.insights();
-
-        assertThat(insights)
+        assertThat(facade.insights())
                 .as("linhas sem frase (ex.: \"!;\") não podem aparecer como insight")
-                .containsExactly(
-                        "Ana tem 6 eventos em atraso e deve priorizar pagá-los.",
-                        "💰 Três clientes ainda não pagaram o sinal.");
+                .containsExactly("Ana tem 6 eventos em atraso e deve priorizar a cobrança.", "💰 Duas tarefas vencem hoje.");
         verify(ai, times(1)).generate(anyString(), anyString());
     }
 
     @Test
     void shouldRetryOnceWhenEveryLineIsGarbage() {
-        when(contextBuilder.build()).thenReturn("contexto");
+        when(contextBuilder.insightFacts()).thenReturn(List.of("Tarefas para hoje: 2."));
         when(ai.generate(anyString(), anyString()))
                 .thenReturn("!;\n;\n!;")
-                .thenReturn("📅 Duas tarefas vencem hoje: confira a agenda.");
+                .thenReturn("1. 📅 Duas tarefas vencem hoje: confira a agenda.");
 
         assertThat(facade.insights()).containsExactly("📅 Duas tarefas vencem hoje: confira a agenda.");
         verify(ai, times(2)).generate(anyString(), anyString());
-        verify(contextBuilder, times(1)).build();
     }
 
     @Test
     void shouldReturnEmptyWhenRetryIsAlsoGarbage() {
-        when(contextBuilder.build()).thenReturn("contexto");
+        when(contextBuilder.insightFacts()).thenReturn(List.of("Eventos futuros: 4."));
         when(ai.generate(anyString(), anyString())).thenReturn("!;\n;");
 
         assertThat(facade.insights())
@@ -67,17 +61,100 @@ class AiAssistantFacadeTest {
     }
 
     @Test
+    void withoutFactsThereIsNothingToAskTheModel() {
+        when(contextBuilder.insightFacts()).thenReturn(List.of());
+
+        assertThat(facade.insights()).isEmpty();
+        verify(ai, never()).generate(anyString(), anyString());
+    }
+
+    @Test
+    void eachInsightMayOnlyCiteNumbersFromItsOwnFact() {
+        when(contextBuilder.insightFacts()).thenReturn(List.of(
+                "Eventos futuros sem contrato: 2 — Mariana Costa (16/12/2026), Rafael e Júlia Souza (20/01/2027).",
+                "Total a receber dos 4 eventos futuros, somados: R$ 9100.00."));
+        when(ai.generate(anyString(), anyString())).thenReturn("""
+                1. 📄 Mariana Costa (16/12) e Rafael e Júlia Souza (20/01) ainda estão sem contrato.
+                2. 💸 Há R$ 9.100,00 a receber da Mariana Costa em 16/12/2026.
+                1. 📄 Repetido para o mesmo fato.
+                3. 📊 O custo médio por evento é de R$ 3166,67.""");
+
+        assertThat(facade.insights())
+                .as("a data 16/12 do fato 1 citada no fato 2 é troca de dados; fato 3 não existe; fato repetido vale uma vez")
+                .containsExactly("📄 Mariana Costa (16/12) e Rafael e Júlia Souza (20/01) ainda estão sem contrato.");
+    }
+
+    @Test
+    void insightsMayNotInventADeadlineTheFactDoesNotHave() {
+        when(contextBuilder.insightFacts()).thenReturn(List.of(
+                "Tarefas nos próximos 7 dias: 1 — Atualizar portfólio no Instagram (prazo 23/11/2026).",
+                "Tarefas para hoje: 1 — Compra de material (Mariana Costa, prazo 21/11/2026)."));
+        when(ai.generate(anyString(), anyString())).thenReturn("""
+                1. 📱 Atualizar o portfólio no Instagram: comece as postagens hoje.
+                2. 🛍️ A compra de material da Mariana Costa vence hoje: garanta os itens.""");
+
+        assertThat(facade.insights())
+                .as("o fato 1 não fala em hoje; o fato 2 fala")
+                .containsExactly("🛍️ A compra de material da Mariana Costa vence hoje: garanta os itens.");
+    }
+
+    @Test
+    void unnumberedLinesShouldMatchTheFactsByOrder() {
+        when(contextBuilder.insightFacts()).thenReturn(List.of(
+                "Pagamentos em atraso (eventos já realizados e não quitados): 1 — Horizonte (R$ 2700.00).",
+                "Eventos futuros sem contrato: 1 — Rafael (20/01/2027)."));
+        when(ai.generate(anyString(), anyString())).thenReturn("""
+                💰 A Horizonte ainda não quitou R$ 2700,00 de um evento realizado: vale cobrar.
+
+                📄 O evento do Rafael em 20/01/2027 está sem contrato: gere e envie.""");
+
+        assertThat(facade.insights()).containsExactly(
+                "💰 A Horizonte ainda não quitou R$ 2700,00 de um evento realizado: vale cobrar.",
+                "📄 O evento do Rafael em 20/01/2027 está sem contrato: gere e envie.");
+    }
+
+    @Test
+    void insightsMayNotAttributeAFactToTheWrongClient() {
+        when(contextBuilder.clientNames()).thenReturn(List.of("Mariana Costa", "Carla Mendes"));
+        when(contextBuilder.insightFacts()).thenReturn(List.of(
+                "Tarefas nos próximos 7 dias: 2 — Atualizar portfólio no Instagram (prazo 23/11/2026), Produção (Carla Mendes, prazo 24/11/2026)."));
+        when(ai.generate(anyString(), anyString())).thenReturn("""
+                📸 Mariana tem tarefa para atualizar o portfólio no Instagram em 23/11/2026: mantenha as redes em dia.
+                📅 O portfólio (23/11/2026) e a produção da Carla Mendes (24/11/2026) vencem nos próximos 7 dias.""");
+
+        assertThat(facade.insights())
+                .as("a tarefa do Instagram é avulsa: atribuí-la à Mariana é invenção")
+                .containsExactly("📅 O portfólio (23/11/2026) e a produção da Carla Mendes (24/11/2026) vencem nos próximos 7 dias.");
+    }
+
+    @Test
+    void insightsShouldBeWrittenFromTheFactsNotFromTheWholeContext() {
+        when(contextBuilder.insightFacts()).thenReturn(List.of("Eventos futuros: 4."));
+        when(contextBuilder.todayLabel()).thenReturn("sábado, 21/11/2026");
+        when(ai.generate(anyString(), anyString())).thenReturn("1. 📅 Há 4 eventos futuros na agenda.");
+
+        assertThat(facade.insights()).containsExactly("📅 Há 4 eventos futuros na agenda.");
+
+        ArgumentCaptor<String> system = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<String> prompt = ArgumentCaptor.forClass(String.class);
+        verify(ai).generate(system.capture(), prompt.capture());
+        assertThat(system.getValue()).contains("Hoje é sábado, 21/11/2026").doesNotContain("=== DADOS ATUAIS DO SISTEMA ===");
+        assertThat(prompt.getValue()).contains("1. Eventos futuros: 4.");
+        verify(contextBuilder, never()).build();
+    }
+
+    @Test
     void systemPromptShouldUseTheConfiguredBusinessProfile() {
-        when(contextBuilder.build()).thenReturn("contexto");
-        when(ai.generate(anyString(), anyString())).thenReturn("📅 Duas tarefas vencem hoje: confira a agenda.");
+        when(contextBuilder.insightFacts()).thenReturn(List.of("Tarefas para hoje: 2."));
+        when(ai.generate(anyString(), anyString())).thenReturn("1. 📅 Duas tarefas vencem hoje: confira a agenda.");
 
         facade.insights();
 
-        org.mockito.ArgumentCaptor<String> systemPrompt = org.mockito.ArgumentCaptor.forClass(String.class);
-        org.mockito.ArgumentCaptor<String> userPrompt = org.mockito.ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<String> systemPrompt = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<String> userPrompt = ArgumentCaptor.forClass(String.class);
         verify(ai).generate(systemPrompt.capture(), userPrompt.capture());
         assertThat(systemPrompt.getValue()).contains("sistema de gestão de Ateliê Exemplo", "Você ajuda Ana");
-        assertThat(userPrompt.getValue()).contains("para Ana sobre o negócio");
+        assertThat(userPrompt.getValue()).contains("um insight para Ana:");
     }
 
     @Test
