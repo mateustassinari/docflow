@@ -8,6 +8,10 @@ O sistema nasceu para um negócio real e está em uso. Este repositório é a ve
 
 📐 **[Arquitetura e decisões](https://mateustassinari.github.io/docflow/)**: diagramas C4, fluxo do contrato, segurança e ADRs, gerados a partir de [`docs/`](docs/).
 
+<p align="center">
+  <img src="docs/assets/telas/capa.jpg" width="440" alt="DocFlow: o cliente assina e a agenda se monta sozinha. Dashboard com os próximos eventos (dados fictícios)">
+</p>
+
 ## O que ele faz
 
 - **Contratos em PDF** gerados a partir de templates por tipo de serviço, com placeholders (`{{clienteNome}}`, `{{dadosServico.*}}`) e cláusulas condicionais.
@@ -25,6 +29,15 @@ Cliente + Evento ──▶ Contrato (PDF do template) ──▶ Autentique ─�
                      Tarefas do evento ◀── automação por tipo de serviço
                      (prazos relativos) ──▶ lembretes por e-mail
 ```
+
+## Telas
+
+| | |
+| --- | --- |
+| ![Evento com o contrato assinado e as tarefas criadas](docs/assets/telas/evento-assinado.png) | ![Contrato gerado em PDF a partir do template](docs/assets/telas/contrato-pdf.png) |
+| Contrato assinado: as tarefas do evento já criadas, com prazo | Contrato em PDF, preenchido a partir do template do serviço |
+| ![Tarefas no kanban](docs/assets/telas/kanban.png) | ![Assistente de IA respondendo com os dados do sistema](docs/assets/telas/assistente-ia.png) |
+| Tarefas no kanban | Assistente de IA com modelo local |
 
 ## Arquitetura
 
