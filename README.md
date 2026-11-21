@@ -6,6 +6,8 @@ Gestão de contratos, eventos e operação para negócios de arte em eventos (pi
 
 O sistema nasceu para um negócio real e está em uso. Este repositório é a versão pública: os dados do negócio ficam na configuração, e o código vem com dados de demonstração.
 
+📐 **[Arquitetura e decisões](https://mateustassinari.github.io/docflow/)**: diagramas C4, fluxo do contrato, segurança e ADRs, gerados a partir de [`docs/`](docs/).
+
 ## O que ele faz
 
 - **Contratos em PDF** gerados a partir de templates por tipo de serviço, com placeholders (`{{clienteNome}}`, `{{dadosServico.*}}`) e cláusulas condicionais.
