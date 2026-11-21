@@ -32,12 +32,16 @@ Cliente + Evento ──▶ Contrato (PDF do template) ──▶ Autentique ─�
 
 ## Telas
 
-| | |
-| --- | --- |
-| ![Evento com o contrato assinado e as tarefas criadas](docs/assets/telas/evento-assinado.png) | ![Contrato gerado em PDF a partir do template](docs/assets/telas/contrato-pdf.png) |
-| Contrato assinado: as tarefas do evento já criadas, com prazo | Contrato em PDF, preenchido a partir do template do serviço |
-| ![Tarefas no kanban](docs/assets/telas/kanban.png) | ![Assistente de IA respondendo com os dados do sistema](docs/assets/telas/assistente-ia.png) |
-| Tarefas no kanban | Assistente de IA com modelo local |
+<table>
+  <tr>
+    <td align="center" valign="top" width="50%"><img src="docs/assets/telas/evento-assinado.png" alt="Evento com o contrato assinado e as tarefas criadas"><br><sub>Contrato assinado: as tarefas do evento já criadas, com prazo</sub></td>
+    <td align="center" valign="top" width="50%"><img src="docs/assets/telas/contrato-pdf.png" alt="Contrato gerado em PDF a partir do template"><br><sub>Contrato em PDF, preenchido a partir do template do serviço</sub></td>
+  </tr>
+  <tr>
+    <td align="center" valign="top" width="50%"><img src="docs/assets/telas/kanban.png" alt="Tarefas no kanban"><br><sub>Tarefas no kanban</sub></td>
+    <td align="center" valign="top" width="50%"><img src="docs/assets/telas/assistente-ia.png" alt="Assistente de IA respondendo com os dados do sistema"><br><sub>Assistente de IA com modelo local</sub></td>
+  </tr>
+</table>
 
 ## Arquitetura
 
