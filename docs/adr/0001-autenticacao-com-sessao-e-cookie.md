@@ -1,10 +1,11 @@
-# 1. Autenticação com sessão no servidor e cookie
+---
+hide:
+  - navigation
+---
 
-Date: 2026-11-20
+# ADR 1: Autenticação com sessão no servidor e cookie
 
-## Status
-
-Accepted
+!!! success "Aceita em 20/11/2026"
 
 ## Contexto
 

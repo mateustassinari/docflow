@@ -1,0 +1,16 @@
+/* Página mais larga: os diagramas C4 precisam de espaço */
+.md-grid {
+  max-width: 1400px;
+}
+
+/* Diagramas como cartões de fundo branco, legíveis também no modo escuro */
+.md-typeset figure img {
+  background: #fff;
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.md-typeset figcaption {
+  max-width: none;
+}

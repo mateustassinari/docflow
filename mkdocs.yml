@@ -1,0 +1,73 @@
+site_name: DocFlow
+site_description: Arquitetura e decisões do DocFlow
+site_url: https://mateustassinari.github.io/docflow/
+repo_url: https://github.com/mateustassinari/docflow
+repo_name: mateustassinari/docflow
+
+docs_dir: docs
+# Em docs/ também ficam o modelo C4, as ferramentas do site e anotações privadas, que não são páginas
+exclude_docs: |
+  private/
+  workspace.dsl
+  workspace.json
+  .structurizr/
+  Dockerfile
+  gerar-diagramas.sh
+
+nav:
+  - Visão geral: index.md
+  - Fluxo do contrato: fluxo-do-contrato.md
+  - Segurança: seguranca.md
+  - Decisões:
+      - adr/index.md
+      - "ADR 1: Sessão e cookie": adr/0001-autenticacao-com-sessao-e-cookie.md
+
+theme:
+  name: material
+  language: pt-BR
+  logo: assets/logo.svg
+  favicon: assets/logo.svg
+  icon:
+    repo: fontawesome/brands/github
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-night
+        name: Modo escuro
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Modo claro
+  features:
+    - navigation.tabs
+    - navigation.top
+    - navigation.footer
+    - navigation.indexes
+    - toc.follow
+    - search.highlight
+    - content.code.copy
+
+plugins:
+  - search:
+      lang: pt
+  # Clicar num diagrama abre em tela cheia
+  - glightbox
+
+extra_css:
+  - stylesheets/extra.css
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.superfences
+  - pymdownx.details
