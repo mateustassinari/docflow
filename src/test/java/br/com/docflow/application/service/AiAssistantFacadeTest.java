@@ -2,13 +2,17 @@ package br.com.docflow.application.service;
 
 import br.com.docflow.domain.model.BusinessProfile;
 import br.com.docflow.domain.service.AiAssistantService;
+import java.util.Optional;
+import org.mockito.ArgumentCaptor;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -74,6 +78,36 @@ class AiAssistantFacadeTest {
         verify(ai).generate(systemPrompt.capture(), userPrompt.capture());
         assertThat(systemPrompt.getValue()).contains("sistema de gestão de Ateliê Exemplo", "Você ajuda Ana");
         assertThat(userPrompt.getValue()).contains("para Ana sobre o negócio");
+    }
+
+    @Test
+    void deadlineQuestionsShouldBeAnsweredFromTheFocusedGroupOnly() {
+        when(contextBuilder.taskDeadlineFocus("Quais tarefas estão atrasadas?")).thenReturn(Optional.of("TAREFAS ATRASADAS:\n  - Reunião"));
+        when(ai.generate(anyString(), anyString())).thenReturn("Reunião");
+
+        facade.chat("Quais tarefas estão atrasadas?");
+
+        ArgumentCaptor<String> system = ArgumentCaptor.forClass(String.class);
+        verify(ai).generate(system.capture(), eq("Quais tarefas estão atrasadas?"));
+        assertThat(system.getValue()).contains("TAREFAS ATRASADAS:").doesNotContain("=== DADOS ATUAIS DO SISTEMA ===");
+        verify(contextBuilder, never()).build();
+    }
+
+    @Test
+    void focusedPromptShouldOnlyMentionAnEmptyListWhenTheListIsEmpty() {
+        when(ai.generate(anyString(), anyString())).thenReturn("ok");
+        when(contextBuilder.taskDeadlineFocus("Com itens?")).thenReturn(Optional.of("TAREFAS:\n  - Produção — prazo 24/11/2026"));
+        when(contextBuilder.taskDeadlineFocus("Vazia?")).thenReturn(Optional.of("TAREFAS:\n  nenhuma\n"));
+
+        facade.chat("Com itens?");
+        facade.chat("Vazia?");
+
+        ArgumentCaptor<String> system = ArgumentCaptor.forClass(String.class);
+        verify(ai, times(2)).generate(system.capture(), anyString());
+        assertThat(system.getAllValues().get(0))
+                .as("com a palavra \"nenhuma\" na instrução, o modelo respondia \"nenhuma\" mesmo com tarefas na lista")
+                .contains("listando exatamente as tarefas acima").doesNotContain("Não há tarefas");
+        assertThat(system.getAllValues().get(1)).contains("Não há tarefas nesse período");
     }
 
     @Test

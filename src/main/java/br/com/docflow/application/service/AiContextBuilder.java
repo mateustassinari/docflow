@@ -15,15 +15,21 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.text.Normalizer;
 import java.time.Clock;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.TemporalAdjusters;
 import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Stream;
 import java.util.TreeMap;
 
 /**
@@ -38,6 +44,12 @@ import java.util.TreeMap;
 public class AiContextBuilder {
 
     private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+    private static final String CONTRATO_ASSINADO = "assinado";
+    private static final String CONTRATO_AGUARDANDO = "aguardando assinatura da cliente";
+    private static final String CONTRATO_GERADO = "gerado, aguardando envio";
+    private static final String SEM_CONTRATO = "sem contrato";
+    private static final String CONTRATO_DISPENSADO = "dispensado";
+    private static final DateTimeFormatter WEEKDAY = DateTimeFormatter.ofPattern("EEEE", Locale.of("pt", "BR"));
 
     private final EventRepository eventRepository;
     private final ContractRepository contractRepository;
@@ -48,22 +60,93 @@ public class AiContextBuilder {
     public String build() {
         List<Event> events = eventRepository.findAll();
         LocalDate today = LocalDate.now(clock);
+        Map<Long, ContractStatus> contracts = contractStatusByEvent();
+        TaskBuckets tasks = taskBuckets(today);
         StringBuilder sb = new StringBuilder();
 
-        sb.append("Data de hoje: ").append(today.format(DATE)).append("\n\n");
+        sb.append("Data de hoje: ").append(today.format(WEEKDAY)).append(", ").append(today.format(DATE)).append("\n\n");
 
+        // O modelo pequeno erra quando precisa contar, comparar datas ou cruzar seções.
+        // Por isso as respostas mais pedidas já vão calculadas: ele só precisa ler e redigir.
+        appendSummary(sb, events, contracts, tasks, today);
         appendFinancials(sb, events, today);
         appendServiceMix(sb, events);
         appendMarginByService(sb, events);
-        appendUpcomingEvents(sb, events, today);
-        appendContractsAndBilling(sb, events, today);
+        appendUpcomingEvents(sb, events, contracts, today);
+        appendContractsAndBilling(sb, events, contracts, today);
         appendHistory(sb, events, today);
-        appendTasks(sb, today);
+        appendTasks(sb, tasks, today);
 
         String context = sb.toString();
         // Estimativa grosseira (~4 caracteres por token) para conferir que cabe no num_ctx do modelo.
         log.debug("Contexto da IA: {} caracteres (~{} tokens)", context.length(), context.length() / 4);
         return context;
+    }
+
+    /**
+     * Para perguntas sobre prazos de tarefas (atrasadas, de hoje, da semana, dos próximos 7 dias),
+     * devolve só o grupo que responde à pergunta, já filtrado. Com o contexto inteiro, o modelo
+     * pequeno puxava tarefas do grupo vizinho; com só o grupo certo, ele apenas redige a lista.
+     * Vazio quando a pergunta não é desse tipo, e o assistente usa o contexto completo.
+     */
+    @Transactional(readOnly = true)
+    public Optional<String> taskDeadlineFocus(String question) {
+        String q = normalize(question);
+        if (q.matches(".*(pagament|receb|cobran|valor|dinheiro|financ).*")) {
+            return Optional.empty();
+        }
+        LocalDate today = LocalDate.now(clock);
+        TaskBuckets tasks = taskBuckets(today);
+        StringBuilder sb = new StringBuilder("Data de hoje: ").append(today.format(WEEKDAY)).append(", ").append(today.format(DATE)).append("\n");
+        if (q.contains("atrasad")) {
+            appendTaskGroup(sb, "TAREFAS ATRASADAS (prazo antes de hoje)", tasks.atrasadas());
+        } else if (q.contains("semana")) {
+            appendTaskGroup(sb, "TAREFAS QUE VENCEM ESTA SEMANA (de hoje até domingo, " + tasks.domingo().format(DATE) + ")",
+                    Stream.concat(tasks.hoje().stream(), tasks.restoDaSemana().stream()).toList());
+        } else if (q.matches(".*(7 dias|sete dias|proximos dias).*")) {
+            appendTaskGroup(sb, "TAREFAS QUE VENCEM NOS PRÓXIMOS 7 DIAS (depois de hoje até " + tasks.fim7Dias().format(DATE) + ")", tasks.proximos7Dias());
+        } else if (q.contains("hoje") && q.matches(".*(tarefa|vence|prazo|fazer).*")) {
+            appendTaskGroup(sb, "TAREFAS PARA HOJE", tasks.hoje());
+        } else {
+            return Optional.empty();
+        }
+        return Optional.of(sb.toString());
+    }
+
+    private static String normalize(String text) {
+        String semAcento = Normalizer.normalize(text == null ? "" : text, Normalizer.Form.NFD).replaceAll("\\p{M}", "");
+        return semAcento.toLowerCase(Locale.ROOT);
+    }
+
+    private void appendSummary(StringBuilder sb, List<Event> events, Map<Long, ContractStatus> contracts, TaskBuckets tasks, LocalDate today) {
+        List<Event> futuros = events.stream()
+                .filter(e -> isFuture(e, today))
+                .sorted(Comparator.comparing(Event::getData))
+                .toList();
+        BigDecimal aReceber = futuros.stream().map(this::pendenteDoEvento).filter(v -> v.signum() > 0).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal emAtraso = events.stream().filter(e -> isOverdue(e, today))
+                .map(this::pendenteDoEvento).filter(v -> v.signum() > 0).reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        sb.append("== RESUMO (números já calculados pelo sistema: use-os como estão, sem recontar) ==\n");
+        sb.append("Eventos futuros: ").append(futuros.size());
+        if (!futuros.isEmpty()) {
+            Event proximo = futuros.getFirst();
+            sb.append(" | próximo: ").append(clientName(proximo)).append(" em ").append(proximo.getData().format(DATE))
+                    .append(" (").append(label(proximo.getTipoServico())).append(")");
+        }
+        sb.append("\n");
+        sb.append("A receber de eventos futuros: ").append(money(aReceber))
+                .append(" | em atraso (eventos já realizados e não quitados): ").append(money(emAtraso)).append("\n");
+        sb.append("Contratos dos eventos futuros:");
+        for (String status : List.of(CONTRATO_ASSINADO, CONTRATO_AGUARDANDO, CONTRATO_GERADO, SEM_CONTRATO, CONTRATO_DISPENSADO)) {
+            long n = futuros.stream().filter(e -> contractLabel(e, contracts).equals(status)).count();
+            sb.append(" ").append(status).append(": ").append(n).append(";");
+        }
+        sb.append("\n");
+        sb.append("Tarefas abertas: atrasadas ").append(tasks.atrasadas().size())
+                .append(" | para hoje ").append(tasks.hoje().size())
+                .append(" | no resto desta semana ").append(tasks.restoDaSemana().size())
+                .append(" | nos próximos 7 dias ").append(tasks.proximos7Dias().size()).append("\n\n");
     }
 
     private void appendFinancials(StringBuilder sb, List<Event> events, LocalDate today) {
@@ -170,7 +253,7 @@ public class AiContextBuilder {
         sb.append("\n");
     }
 
-    private void appendUpcomingEvents(StringBuilder sb, List<Event> events, LocalDate today) {
+    private void appendUpcomingEvents(StringBuilder sb, List<Event> events, Map<Long, ContractStatus> contracts, LocalDate today) {
         List<Event> proximos = events.stream()
                 .filter(e -> e.getData() != null && !e.getData().isBefore(today))
                 .sorted(Comparator.comparing(Event::getData))
@@ -191,7 +274,9 @@ public class AiContextBuilder {
                     .append(" | ").append(orDash(e.getTipoEvento()))
                     .append(" | ").append(label(e.getTipoServico()))
                     .append(" | ").append(money(nz(e.getValor())))
-                    .append(" | pagamento: ").append(paymentStatus(e));
+                    .append(" | pagamento: ").append(paymentStatus(e))
+                    .append(" | a receber: ").append(money(pendenteDoEvento(e).max(BigDecimal.ZERO)))
+                    .append(" | contrato: ").append(contractLabel(e, contracts));
             appendIf(sb, "local", e.getLocal());
             if (e.getNumeroConvidados() != null) {
                 sb.append(" | convidados: ").append(e.getNumeroConvidados());
@@ -204,13 +289,31 @@ public class AiContextBuilder {
         sb.append("\n");
     }
 
-    private void appendContractsAndBilling(StringBuilder sb, List<Event> events, LocalDate today) {
+    private Map<Long, ContractStatus> contractStatusByEvent() {
         Map<Long, ContractStatus> byEvent = new HashMap<>();
         for (Contract c : contractRepository.findAll()) {
             if (c.getEvent() != null && c.getEvent().getId() != null) {
                 byEvent.put(c.getEvent().getId(), c.getStatus());
             }
         }
+        return byEvent;
+    }
+
+    private String contractLabel(Event e, Map<Long, ContractStatus> contracts) {
+        ContractStatus st = contracts.get(e.getId());
+        if (st == ContractStatus.ASSINADO) {
+            return CONTRATO_ASSINADO;
+        }
+        if (st == ContractStatus.ENVIADO) {
+            return CONTRATO_AGUARDANDO;
+        }
+        if (st == ContractStatus.RASCUNHO) {
+            return CONTRATO_GERADO;
+        }
+        return e.isContratoDispensado() ? CONTRATO_DISPENSADO : SEM_CONTRATO;
+    }
+
+    private void appendContractsAndBilling(StringBuilder sb, List<Event> events, Map<Long, ContractStatus> byEvent, LocalDate today) {
 
         int gerados = 0;
         int aguardando = 0;
@@ -307,45 +410,51 @@ public class AiContextBuilder {
         sb.append("\n");
     }
 
-    private void appendTasks(StringBuilder sb, LocalDate today) {
+    /** Tarefas abertas separadas por prazo, já com as datas comparadas pelo sistema. */
+    private record TaskBuckets(int total, int concluidas, List<TaskView> atrasadas, List<TaskView> hoje,
+                               List<TaskView> restoDaSemana, List<TaskView> proximos7Dias, List<TaskView> depois,
+                               LocalDate domingo, LocalDate fim7Dias) {
+    }
+
+    private TaskBuckets taskBuckets(LocalDate today) {
         List<TaskView> all = taskService.list(null, null, null, null, null, null);
         List<TaskView> open = all.stream()
                 .filter(t -> t.task().getStatus() != TaskStatus.CONCLUIDA)
-                .toList();
-
-        List<TaskView> atrasadas = open.stream()
-                .filter(t -> deadline(t).isBefore(today))
                 .sorted(Comparator.comparing(this::deadline))
                 .toList();
-        List<TaskView> hoje = open.stream()
-                .filter(t -> deadline(t).isEqual(today))
-                .sorted(Comparator.comparing(this::deadline))
-                .toList();
-        List<TaskView> proximas = open.stream()
-                .filter(t -> deadline(t).isAfter(today))
-                .sorted(Comparator.comparing(this::deadline))
-                .limit(15)
-                .toList();
+        LocalDate domingo = today.with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY));
+        LocalDate fim7Dias = today.plusDays(7);
+        return new TaskBuckets(
+                all.size(),
+                all.size() - open.size(),
+                open.stream().filter(t -> deadline(t).isBefore(today)).toList(),
+                open.stream().filter(t -> deadline(t).isEqual(today)).toList(),
+                open.stream().filter(t -> deadline(t).isAfter(today) && !deadline(t).isAfter(domingo)).toList(),
+                open.stream().filter(t -> deadline(t).isAfter(today) && !deadline(t).isAfter(fim7Dias)).toList(),
+                open.stream().filter(t -> deadline(t).isAfter(fim7Dias)).limit(15).toList(),
+                domingo, fim7Dias);
+    }
 
-        long concluidas = all.size() - open.size();
+    private void appendTasks(StringBuilder sb, TaskBuckets tasks, LocalDate today) {
+        int abertas = tasks.total() - tasks.concluidas();
+        sb.append("== TAREFAS (cada grupo já filtrado pelo prazo; não mova tarefas de um grupo para outro) ==\n");
+        sb.append("Total: ").append(tasks.total())
+                .append(" | abertas: ").append(abertas)
+                .append(" | concluídas: ").append(tasks.concluidas()).append("\n");
 
-        sb.append("== TAREFAS ==\n");
-        sb.append("Total: ").append(all.size())
-                .append(" | abertas: ").append(open.size())
-                .append(" | concluídas: ").append(concluidas)
-                .append(" | atrasadas: ").append(atrasadas.size())
-                .append(" | para hoje: ").append(hoje.size()).append("\n");
-
-        appendTaskGroup(sb, "ATRASADAS", atrasadas);
-        appendTaskGroup(sb, "PARA HOJE", hoje);
-        appendTaskGroup(sb, "PRÓXIMAS", proximas);
+        appendTaskGroup(sb, "ATRASADAS (prazo antes de hoje)", tasks.atrasadas());
+        appendTaskGroup(sb, "PARA HOJE (" + today.format(DATE) + ")", tasks.hoje());
+        appendTaskGroup(sb, "NO RESTO DESTA SEMANA (depois de hoje até domingo, " + tasks.domingo().format(DATE) + ")", tasks.restoDaSemana());
+        appendTaskGroup(sb, "NOS PRÓXIMOS 7 DIAS (depois de hoje até " + tasks.fim7Dias().format(DATE) + ")", tasks.proximos7Dias());
+        appendTaskGroup(sb, "DEPOIS DE " + tasks.fim7Dias().format(DATE), tasks.depois());
     }
 
     private void appendTaskGroup(StringBuilder sb, String titulo, List<TaskView> tasks) {
+        sb.append(titulo).append(":\n");
         if (tasks.isEmpty()) {
+            sb.append("  nenhuma\n");
             return;
         }
-        sb.append(titulo).append(":\n");
         for (TaskView view : tasks) {
             var t = view.task();
             sb.append("  - ").append(t.getTitulo() == null || t.getTitulo().isBlank() ? "(sem título)" : t.getTitulo())
