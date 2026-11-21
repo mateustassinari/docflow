@@ -9,6 +9,7 @@ import br.com.docflow.presentation.dto.*;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -129,16 +131,21 @@ public class TaskController {
 
     @PostMapping(value = "/{id}/attachments", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<TaskResponse> uploadAttachment(@PathVariable Long id, @RequestParam("file") MultipartFile file) throws IOException {
-        AttachmentUpload upload = new AttachmentUpload(file.getOriginalFilename(), file.getContentType(), file.getBytes());
+        AttachmentUpload upload = new AttachmentUpload(
+                file.getOriginalFilename(), AttachmentContentTypes.safe(file.getContentType()).toString(), file.getBytes());
         return ResponseEntity.ok(TaskResponse.from(taskService.uploadAttachment(id, upload)));
     }
 
     @GetMapping("/{id}/attachments/{attachmentId}")
     public ResponseEntity<byte[]> downloadAttachment(@PathVariable Long id, @PathVariable Long attachmentId) throws IOException {
         TaskAttachment attachment = taskService.findAttachment(id, attachmentId);
+        // O nome vem de quem enviou o arquivo: o ContentDisposition escapa aspas e codifica acentos (RFC 6266)
+        ContentDisposition disposition = ContentDisposition.attachment()
+                .filename(attachment.originalName() == null ? "anexo" : attachment.originalName(), StandardCharsets.UTF_8)
+                .build();
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + attachment.originalName() + "\"")
-                .contentType(MediaType.parseMediaType(attachment.contentType() == null ? MediaType.APPLICATION_OCTET_STREAM_VALUE : attachment.contentType()))
+                .header(HttpHeaders.CONTENT_DISPOSITION, disposition.toString())
+                .contentType(AttachmentContentTypes.safe(attachment.contentType()))
                 .body(taskService.loadAttachment(attachment));
     }
 
